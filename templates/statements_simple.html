@@ -1,0 +1,52 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">Statements</h1>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-lg font-medium text-gray-900">Generate Client Statement</h2>
+        </div>
+        
+        <div class="p-6">
+            <p class="mb-4 text-gray-600">Select a client to generate a statement of account.</p>
+            
+            <form method="GET" action="{{ url_for('generate_statement_form') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <div class="mb-4">
+                    <label for="client_id" class="block text-sm font-medium text-gray-700 mb-1">Select Client</label>
+                    <select id="client_id" name="client_id" required class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">-- Select Client --</option>
+                        {% for client in clients %}
+                        <option value="{{ client.id }}">{{ client.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="flex items-center justify-start space-x-4 pt-2">
+                    <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
+                        Continue
+                    </button>
+                    <a href="{{ url_for('dashboard') }}" class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div class="mt-8 bg-white rounded-lg shadow-md overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-lg font-medium text-gray-900">Recent Statements</h2>
+        </div>
+        
+        <div class="p-6">
+            <p class="text-gray-500 italic">Statement history will be displayed here in future updates.</p>
+        </div>
+    </div>
+</div>
+{% endblock %} 

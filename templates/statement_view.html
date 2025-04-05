@@ -1,0 +1,118 @@
+{% extends "layout.html" %}
+
+{% block content %}
+    <div class="bg-white shadow-md rounded-lg overflow-hidden mb-6">
+        <div class="p-6">
+            <div class="flex flex-col sm:flex-row justify-between sm:items-start mb-6 gap-4">
+                <!-- Company Info -->
+                <div class="mb-4 sm:mb-0">
+                    <h1 class="text-2xl font-bold text-blue-700">{{ company.name }}</h1>
+                    {% if company.address %}
+                        <div class="text-sm text-gray-600">{{ company.address | replace('\n', '<br>') | safe }}</div>
+                    {% endif %}
+                    <div class="text-sm text-gray-600 mt-1">
+                        {% if company.phone %}<div>Phone: {{ company.phone }}</div>{% endif %}
+                        {% if company.email %}<div>Email: {{ company.email }}</div>{% endif %}
+                    </div>
+                </div>
+                
+                <!-- Statement Info -->
+                <div class="text-right">
+                    <h2 class="text-xl font-bold text-gray-800">STATEMENT</h2>
+                    <div class="mt-1 text-sm text-gray-600">Date: {{ end_date.strftime('%d %b %Y') }}</div>
+                    <div class="mt-1 text-sm text-gray-600">Period: {{ start_date.strftime('%d %b %Y') }} to {{ end_date.strftime('%d %b %Y') }}</div>
+                </div>
+            </div>
+            
+            <hr class="my-4 border-gray-200">
+            
+            <!-- Client Info -->
+            <div class="mb-6">
+                <h2 class="text-lg font-medium text-gray-800">Client:</h2>
+                <div class="text-base font-bold">{{ client.name }}</div>
+                {% if client.email %}<div class="text-sm text-gray-600">Email: {{ client.email }}</div>{% endif %}
+                {% if client.phone %}<div class="text-sm text-gray-600">Phone: {{ client.phone }}</div>{% endif %}
+                {% if client.address %}<div class="text-sm text-gray-600">{{ client.address | replace('\n', '<br>') | safe }}</div>{% endif %}
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider" style="width: 15%;">Date</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider" style="width: 20%;">Reference</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Description</th>
+                            <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase tracking-wider">Debit (+)</th>
+                            <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase tracking-wider">Credit (-)</th>
+                            <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase tracking-wider">Balance</th>
+                        </tr>
+                        <tr class="bg-gray-200 border-t border-b border-gray-300">
+                            <td colspan="5" class="px-4 py-2 text-right text-sm font-semibold text-gray-700">Opening Balance</td>
+                            <td class="px-4 py-2 text-right text-sm font-semibold text-gray-700 {% if opening_balance < 0 %}text-green-700{% elif opening_balance > 0 %}text-red-700{% else %}text-gray-700{% endif %}">{{ "{:.2f}".format(opening_balance) }}</td>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% if transactions %}
+                            {% for txn in transactions %}
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{{ txn.date.strftime('%Y-%m-%d') }}</td>
+                                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{{ txn.invoice_number or '' }}</td>
+                                <td class="px-4 py-2 text-sm text-gray-800">{{ txn.description }}</td>
+                                <td class="px-4 py-2 whitespace-nowrap text-sm text-right text-red-600">{{ "{:.2f}".format(txn.debit) if txn.debit else '' }}</td>
+                                <td class="px-4 py-2 whitespace-nowrap text-sm text-right text-green-600">{{ "{:.2f}".format(txn.credit) if txn.credit else '' }}</td>
+                                <td class="px-4 py-2 whitespace-nowrap text-sm text-right {% if txn.balance < 0 %}text-green-600{% elif txn.balance > 0 %}text-red-600{% else %}text-gray-700{% endif %}">{{ "{:.2f}".format(txn.balance) }}</td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="6" class="p-6 text-center text-gray-500 italic">No transactions recorded during this period.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                    <tfoot class="bg-gray-100">
+                         <tr class="bg-gray-200 border-t-2 border-gray-400">
+                            <td colspan="5" class="px-4 py-2 text-right text-sm font-bold text-gray-800">Closing Balance</td>
+                            <td class="px-4 py-2 text-right text-sm font-bold text-gray-800 {% if closing_balance < 0 %}text-green-700{% elif closing_balance > 0 %}text-red-700{% else %}text-gray-800{% endif %}">{{ "{:.2f}".format(closing_balance) }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            
+            <div class="mt-6 text-sm text-gray-600">
+                <p>Thank you for your business. If you have any questions about this statement, please contact us.</p>
+                {% if closing_balance > 0 %}
+                <p class="mt-2 font-medium text-red-600">The balance of {{ "{:.2f}".format(closing_balance) }} is due.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="flex justify-between">
+        <a href="{{ url_for('generate_statement_form', client_id=client.id) }}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Generate Another Statement
+        </a>
+        <button onclick="window.print();" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Print Statement
+        </button>
+    </div>
+
+{% endblock %}
+
+{% block extra_head %}
+<style>
+    @media print {
+        nav, .no-print, button {
+            display: none !important;
+        }
+        body, html {
+            background-color: white !important;
+        }
+        main {
+            padding: 0 !important;
+        }
+        .shadow-md {
+            box-shadow: none !important;
+        }
+    }
+</style>
+{% endblock %} 

@@ -1,0 +1,508 @@
+{% extends "layout.html" %}
+
+{% block head_content %}
+<!-- Include Sortable.js for drag-and-drop functionality -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.14.0/Sortable.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Main Content - 2/3 width on desktop -->
+    <div class="lg:col-span-2">
+        <!-- Welcome and stats -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-gray-800">Welcome back, {{ current_user.username }}!</h2>
+                {% if company %}
+                <span class="text-sm text-gray-600">{{ company.name }}</span>
+                {% endif %}
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-blue-50 rounded-lg p-4">
+                    <p class="text-sm text-blue-600 font-medium">Total Balance</p>
+                    <p class="text-2xl font-bold text-blue-800">{{ "${:,.2f}".format(total_balance) }}</p>
+                </div>
+                <div class="bg-red-50 rounded-lg p-4">
+                    <p class="text-sm text-red-600 font-medium">Overdue Amount</p>
+                    <p class="text-2xl font-bold text-red-800">{{ "${:,.2f}".format(overdue_amount) }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Recent Transactions -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-medium text-gray-800">Recent Transactions</h2>
+                <a href="{{ url_for('all_transactions') }}" class="text-blue-600 hover:text-blue-800 text-sm">
+                    View All
+                </a>
+            </div>
+            
+            {% if recent_transactions %}
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Date
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Client
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Description
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Amount
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for transaction in recent_transactions %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {{ transaction.date.strftime('%b %d, %Y') }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                <a href="{{ url_for('view_client_transactions', client_id=transaction.client.id) }}" class="hover:text-blue-600">
+                                    {{ transaction.client.name }}
+                                </a>
+                            </td>
+                            <td class="px-6 py-4 text-sm text-gray-500">
+                                {{ transaction.description }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-medium 
+                                        {% if transaction.debit and transaction.debit > 0 %}text-red-600{% else %}text-green-600{% endif %}">
+                                {% if transaction.debit and transaction.debit > 0 %}
+                                -${{ "{:,.2f}".format(transaction.debit) }}
+                                {% else %}
+                                ${{ "{:,.2f}".format(transaction.credit) }}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <p class="text-gray-500">No recent transactions</p>
+                <a href="{{ url_for('add_transaction') }}" class="mt-2 inline-block text-blue-600 hover:text-blue-700">
+                    Record a transaction
+                </a>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Overdue Invoices -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-medium text-gray-800">Overdue Invoices</h2>
+                <a href="{{ url_for('all_transactions') }}?status=overdue" class="text-blue-600 hover:text-blue-800 text-sm">
+                    View All
+                </a>
+            </div>
+            
+            {% if overdue_invoices %}
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Due Date
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Client
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Invoice #
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Amount
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Days Overdue
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for invoice in overdue_invoices %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {{ invoice.due_date.strftime('%b %d, %Y') }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                <a href="{{ url_for('view_client_transactions', client_id=invoice.client.id) }}" class="hover:text-blue-600">
+                                    {{ invoice.client.name }}
+                                </a>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {{ invoice.invoice_number or 'N/A' }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-red-600">
+                                ${{ "{:,.2f}".format(invoice.debit) }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-center">
+                                {% set days_overdue = invoice.due_date and (today - invoice.due_date.date()).days or 0 %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                    {% if days_overdue > 30 %}bg-red-100 text-red-800
+                                    {% elif days_overdue > 15 %}bg-yellow-100 text-yellow-800
+                                    {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                    {{ days_overdue }} days
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <p class="text-gray-500">No overdue invoices</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Sidebar - 1/3 width on desktop -->
+    <div>
+        <!-- To-Do List -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden mb-6">
+            <div class="border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+                <h3 class="text-lg font-medium text-gray-900">Tasks</h3>
+                <a href="{{ url_for('add_todo') }}" class="flex items-center text-blue-600 hover:text-blue-800">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    <span>New Task</span>
+                </a>
+            </div>
+            
+            <!-- Todo filter options -->
+            <div class="px-6 py-2 border-b border-gray-200 flex space-x-2">
+                <button type="button" class="todo-filter px-3 py-1 text-sm rounded-full border-2 border-blue-500 text-blue-600" data-filter="all">
+                    All
+                </button>
+                <button type="button" class="todo-filter px-3 py-1 text-sm rounded-full border-2 border-transparent text-gray-500" data-filter="active">
+                    Active
+                </button>
+                <button type="button" class="todo-filter px-3 py-1 text-sm rounded-full border-2 border-transparent text-gray-500" data-filter="completed">
+                    Completed
+                </button>
+            </div>
+            
+            <div id="todo-list" class="divide-y divide-gray-200">
+                {% if todos %}
+                    {% for todo in todos %}
+                    <div class="todo-item py-3 px-6 flex items-center {% if todo.is_completed %}todo-completed{% endif %}" 
+                         data-id="{{ todo.id }}" 
+                         data-position="{{ todo.position }}" 
+                         data-completed="{{ 'true' if todo.is_completed else 'false' }}">
+                        
+                        <!-- Drag handle -->
+                        <div class="todo-handle flex-shrink-0 mr-2 cursor-move text-gray-400 hover:text-gray-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" />
+                            </svg>
+                        </div>
+                        
+                        <!-- Checkbox -->
+                        <div class="flex-shrink-0 mr-3">
+                            <input type="checkbox" class="todo-checkbox h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
+                                   data-id="{{ todo.id }}" 
+                                   {% if todo.is_completed %}checked{% endif %}>
+                        </div>
+                        
+                        <!-- Content -->
+                        <div class="flex-1">
+                            <p class="text-sm font-medium {% if todo.is_completed %}line-through text-gray-400{% else %}text-gray-900{% endif %}">
+                                {{ todo.title }}
+                            </p>
+                            {% if todo.description %}
+                            <p class="text-xs text-gray-500 {% if todo.is_completed %}line-through text-gray-400{% endif %}">{{ todo.description|truncate(50) }}</p>
+                            {% endif %}
+                            {% if todo.due_date %}
+                            <div class="flex items-center mt-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" 
+                                     class="h-3 w-3 mr-1 {% if todo.is_completed %}text-gray-400{% elif todo.is_overdue %}text-red-500{% else %}text-blue-500{% endif %}" 
+                                     fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <p class="text-xs {% if todo.is_completed %}text-gray-400{% elif todo.is_overdue %}text-red-500{% else %}text-blue-500{% endif %}">
+                                    {{ todo.due_date.strftime('%b %d, %Y') }}
+                                </p>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Action buttons -->
+                        <div class="flex-shrink-0 ml-3 flex space-x-1">
+                            <a href="{{ url_for('edit_todo', todo_id=todo.id) }}" class="text-gray-400 hover:text-blue-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                </svg>
+                            </a>
+                            <button type="button" class="delete-todo text-gray-400 hover:text-red-600" data-id="{{ todo.id }}">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-8">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                        <p class="text-gray-500 mt-2">No tasks to show</p>
+                        <a href="{{ url_for('add_todo') }}" class="mt-2 inline-block text-blue-600 hover:text-blue-700">
+                            Add your first task
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Quick Links -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-lg font-medium text-gray-800 mb-4">Quick Links</h2>
+            <div class="grid grid-cols-2 gap-2">
+                <a href="{{ url_for('add_client') }}" class="flex items-center p-3 rounded-lg hover:bg-blue-50 text-blue-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z" />
+                    </svg>
+                    <span class="text-sm">New Client</span>
+                </a>
+                <a href="{{ url_for('add_transaction') }}" class="flex items-center p-3 rounded-lg hover:bg-blue-50 text-blue-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
+                    </svg>
+                    <span class="text-sm">New Transaction</span>
+                </a>
+                <a href="{{ url_for('list_clients') }}" class="flex items-center p-3 rounded-lg hover:bg-blue-50 text-blue-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
+                    </svg>
+                    <span class="text-sm">All Clients</span>
+                </a>
+                <a href="{{ url_for('all_transactions') }}" class="flex items-center p-3 rounded-lg hover:bg-blue-50 text-blue-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" />
+                    </svg>
+                    <span class="text-sm">All Transactions</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content_javascripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize drag-and-drop for todos
+        const todoList = document.getElementById('todo-list');
+        if (todoList) {
+            const sortable = new Sortable(todoList, {
+                animation: 150,
+                handle: '.todo-handle',
+                ghostClass: 'bg-blue-50',
+                onEnd: function(evt) {
+                    const todoId = evt.item.getAttribute('data-id');
+                    const newPosition = evt.newIndex;
+                    const oldPosition = evt.oldIndex;
+                    
+                    if (newPosition !== oldPosition) {
+                        updateTodoPosition(todoId, newPosition);
+                    }
+                }
+            });
+        }
+        
+        // Todo filtering
+        const filterButtons = document.querySelectorAll('.todo-filter');
+        if (filterButtons.length > 0) {
+            filterButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    // Update active button styling
+                    filterButtons.forEach(btn => {
+                        btn.classList.remove('border-blue-500', 'text-blue-600');
+                        btn.classList.add('border-transparent', 'text-gray-500');
+                    });
+                    this.classList.remove('border-transparent', 'text-gray-500');
+                    this.classList.add('border-blue-500', 'text-blue-600');
+                    
+                    // Filter todos
+                    const filter = this.getAttribute('data-filter');
+                    const todos = document.querySelectorAll('.todo-item');
+                    
+                    todos.forEach(todo => {
+                        const isCompleted = todo.getAttribute('data-completed') === 'true';
+                        
+                        if (filter === 'all' || 
+                            (filter === 'active' && !isCompleted) || 
+                            (filter === 'completed' && isCompleted)) {
+                            todo.classList.remove('hidden');
+                        } else {
+                            todo.classList.add('hidden');
+                        }
+                    });
+                });
+            });
+        }
+        
+        // Toggle todo completion
+        const todoCheckboxes = document.querySelectorAll('.todo-checkbox');
+        todoCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const todoId = this.getAttribute('data-id');
+                const isCompleted = this.checked;
+                const todoItem = this.closest('.todo-item');
+                
+                // Update UI
+                if (isCompleted) {
+                    todoItem.classList.add('todo-completed');
+                    todoItem.setAttribute('data-completed', 'true');
+                    
+                    // Add line-through to text
+                    todoItem.querySelectorAll('.text-gray-900, .text-gray-500, .text-blue-500, .text-red-500').forEach(el => {
+                        el.classList.add('line-through', 'text-gray-400');
+                        el.classList.remove('text-gray-900', 'text-gray-500', 'text-blue-500', 'text-red-500');
+                    });
+                } else {
+                    todoItem.classList.remove('todo-completed');
+                    todoItem.setAttribute('data-completed', 'false');
+                    
+                    // Remove line-through from text
+                    const titleEl = todoItem.querySelector('p:first-child');
+                    titleEl.classList.remove('line-through', 'text-gray-400');
+                    titleEl.classList.add('text-gray-900');
+                    
+                    const descEl = todoItem.querySelector('p:nth-child(2)');
+                    if (descEl) {
+                        descEl.classList.remove('line-through');
+                    }
+                    
+                    const dueDateEl = todoItem.querySelector('.flex p');
+                    const dueDateIcon = todoItem.querySelector('.flex svg');
+                    if (dueDateEl) {
+                        dueDateEl.classList.remove('text-gray-400');
+                        dueDateIcon.classList.remove('text-gray-400');
+                        
+                        const dateStr = dueDateEl.textContent.trim();
+                        const dateParts = dateStr.split(' ');
+                        const month = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].indexOf(dateParts[0]);
+                        const day = parseInt(dateParts[1].replace(',', ''));
+                        const year = parseInt(dateParts[2]);
+                        const dueDate = new Date(year, month, day);
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        
+                        if (dueDate < today) {
+                            dueDateEl.classList.add('text-red-500');
+                            dueDateIcon.classList.add('text-red-500');
+                        } else {
+                            dueDateEl.classList.add('text-blue-500');
+                            dueDateIcon.classList.add('text-blue-500');
+                        }
+                    }
+                }
+                
+                // Send AJAX request to update todo
+                fetchWithCSRF(`/todos/${todoId}/toggle`, {
+                    method: 'POST',
+                    body: JSON.stringify({ is_completed: isCompleted })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        console.error('Error updating todo:', data.message);
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+            });
+        });
+        
+        // Delete todo
+        const deleteButtons = document.querySelectorAll('.delete-todo');
+        deleteButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const todoId = this.getAttribute('data-id');
+                const todoItem = this.closest('.todo-item');
+                
+                if (confirm('Are you sure you want to delete this task?')) {
+                    // Send AJAX request to delete todo
+                    fetchWithCSRF(`/todos/${todoId}/delete`, {
+                        method: 'POST'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Remove the todo from the DOM with animation
+                            todoItem.style.height = todoItem.offsetHeight + 'px';
+                            todoItem.style.opacity = '1';
+                            
+                            setTimeout(() => {
+                                todoItem.style.height = '0';
+                                todoItem.style.opacity = '0';
+                                todoItem.style.marginTop = '0';
+                                todoItem.style.marginBottom = '0';
+                                todoItem.style.padding = '0';
+                                todoItem.style.overflow = 'hidden';
+                            }, 10);
+                            
+                            setTimeout(() => {
+                                todoItem.remove();
+                                
+                                // Show "No tasks" message if no more todos
+                                const remainingTodos = document.querySelectorAll('.todo-item').length;
+                                if (remainingTodos === 0) {
+                                    const todoList = document.getElementById('todo-list');
+                                    todoList.innerHTML = `
+                                        <div class="text-center py-8">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                            </svg>
+                                            <p class="text-gray-500 mt-2">No tasks to show</p>
+                                            <a href="${window.location.origin}/todos/add" class="mt-2 inline-block text-blue-600 hover:text-blue-700">
+                                                Add your first task
+                                            </a>
+                                        </div>
+                                    `;
+                                }
+                            }, 300);
+                        } else {
+                            alert(data.message || 'Error deleting task');
+                        }
+                    })
+                    .catch(error => console.error('Error:', error));
+                }
+            });
+        });
+        
+        // Helper function to update todo position
+        function updateTodoPosition(todoId, newPosition) {
+            // Get all visible todo IDs in their current order
+            const todoItems = document.querySelectorAll('.todo-item:not(.hidden)');
+            const todoOrder = Array.from(todoItems).map(item => item.getAttribute('data-id'));
+            
+            // Send AJAX request to update position
+            fetchWithCSRF(`/todos/${todoId}/position`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    position: newPosition,
+                    order: todoOrder
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    console.error('Error updating todo position:', data.message);
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+    });
+</script>
+{% endblock %} 

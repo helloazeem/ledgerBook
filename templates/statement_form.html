@@ -1,0 +1,70 @@
+{% extends "layout.html" %}
+
+{# Reusing the form_field macro #}
+{% macro form_field(name, label, type='text', value='', required=false, placeholder='', step=None, min=None) %}
+    <div class="mb-4">
+        <label for="{{ name }}" class="block text-sm font-medium text-gray-700 mb-1">{{ label }}{% if required %}<span class="text-red-500"> *</span>{% endif %}</label>
+        <input type="{{ type }}" id="{{ name }}" name="{{ name }}" value="{{ value }}"
+               {% if required %}required{% endif %}
+               {% if step %}step="{{ step }}"{% endif %}
+               {% if min %}min="{{ min }}"{% endif %}
+               class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border border-gray-300 rounded-md p-2" placeholder="{{ placeholder }}">
+    </div>
+{% endmacro %}
+
+{% macro select_field(name, label, options, selected_value, required=false, placeholder='-- Select --') %}
+     <div class="mb-4">
+        <label for="{{ name }}" class="block text-sm font-medium text-gray-700 mb-1">{{ label }}{% if required %}<span class="text-red-500"> *</span>{% endif %}</label>
+        <select id="{{ name }}" name="{{ name }}" {% if required %}required{% endif %} class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border border-gray-300 rounded-md p-2">
+            <option value="">{{ placeholder }}</option>
+            {% for option_value, option_text in options %}
+                {# Check against selected_client object OR form_data #}
+                {% set is_selected = false %}
+                {% if selected_value %}
+                    {% if selected_value is number and option_value|int == selected_value %}
+                        {% set is_selected = true %}
+                    {% elif selected_value is object and option_value|int == selected_value.id %}
+                        {% set is_selected = true %}
+                    {% endif %}
+                {% endif %}
+                <option value="{{ option_value }}" {% if is_selected %}selected{% endif %}>
+                    {{ option_text }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+{% endmacro %}
+
+
+{% block content %}
+    <h1 class="text-2xl font-semibold mb-6">{{ title }}</h1>
+    <form method="POST" action="{{ url_for('view_statement') }}" class="space-y-6">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        {# Prepare client options for the macro #}
+        {% set client_options = [] %}
+        {% for client in clients %}
+            {% set _ = client_options.append((client.id, client.name)) %}
+        {% endfor %}
+
+        {# Determine the selected value carefully #}
+        {% set current_selection = form_data.client_id if form_data else selected_client %}
+
+        {{ select_field('client_id', 'Client', options=client_options, selected_value=current_selection, required=true, placeholder='-- Select a Client --') }}
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {{ form_field('start_date', 'Start Date', type='date', value=(form_data.start_date if form_data else default_start_date), required=true) }}
+            {{ form_field('end_date', 'End Date', type='date', value=(form_data.end_date if form_data else default_end_date), required=true) }}
+        </div>
+
+        <div class="flex items-center justify-start space-x-4 pt-2">
+            <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
+                Generate Statement
+            </button>
+            {# Optional: Add a Cancel button/link #}
+             <a href="{{ url_for('dashboard') }}" class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                Cancel
+            </a>
+        </div>
+    </form>
+{% endblock %} 

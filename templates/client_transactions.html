@@ -1,0 +1,61 @@
+{% extends "layout.html" %}
+
+{% block content %}
+    <div class="flex flex-col sm:flex-row justify-between sm:items-center mb-6 gap-4">
+        <div>
+            <h1 class="text-3xl font-bold">{{ title }}</h1>
+            <p class="text-lg font-semibold {% if client.current_balance < 0 %}text-green-600{% elif client.current_balance > 0 %}text-red-600{% else %}text-gray-700{% endif %}">
+                Current Balance: {{ "{:.2f}".format(client.current_balance) }}
+            </p>
+        </div>
+        <div class="flex space-x-2">
+            <a href="{{ url_for('add_transaction', client_id=client.id) }}" class="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-700 active:bg-green-800 focus:outline-none focus:border-green-900 focus:ring ring-green-300 disabled:opacity-25 transition ease-in-out duration-150">
+                Add Transaction
+            </a>
+             <a href="{{ url_for('generate_statement_form', client_id=client.id) }}" class="inline-flex items-center px-4 py-2 bg-purple-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-purple-700 active:bg-purple-800 focus:outline-none focus:border-purple-900 focus:ring ring-purple-300 disabled:opacity-25 transition ease-in-out duration-150">
+                Generate Statement
+            </a>
+             <a href="{{ url_for('generate_invoice', client_id=client.id) }}" class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 active:bg-blue-800 focus:outline-none focus:border-blue-900 focus:ring ring-blue-300 disabled:opacity-25 transition ease-in-out duration-150">
+                Generate Invoice
+            </a>
+        </div>
+    </div>
+
+    <div class="bg-white shadow-md rounded-lg overflow-hidden">
+        <div class="overflow-x-auto">
+            {% if transactions %}
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                            <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Debit (+)</th>
+                            <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Credit (-)</th>
+                            <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
+                            {# Add Actions column if needed later (e.g., Edit/Delete Transaction) #}
+                            {# <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th> #}
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for txn in transactions %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ txn.date.strftime('%Y-%m-%d') }}</td>
+                            <td class="px-6 py-4 text-sm text-gray-800">{{ txn.description }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-red-600">{{ "{:.2f}".format(txn.debit) if txn.debit else '' }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-green-600">{{ "{:.2f}".format(txn.credit) if txn.credit else '' }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right {% if txn.balance < 0 %}text-green-600{% elif txn.balance > 0 %}text-red-600{% else %}text-gray-700{% endif %}">{{ "{:.2f}".format(txn.balance) }}</td>
+                            {# <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">Placeholder</td> #}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p class="p-6 text-center text-gray-500 italic">No transactions found for this client.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="mt-6">
+        <a href="{{ url_for('list_clients') }}" class="text-blue-600 hover:text-blue-800">&laquo; Back to Client List</a>
+    </div>
+{% endblock %} 

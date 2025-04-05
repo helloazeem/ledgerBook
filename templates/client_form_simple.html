@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} - Ledger Book</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <nav class="bg-blue-600 text-white p-4">
+        <div class="container mx-auto flex justify-between items-center">
+            <a href="/" class="text-xl font-bold">Ledger Book</a>
+            <div>
+                <a href="/dashboard-simple" class="mx-2 hover:underline">Dashboard</a>
+                <a href="/clients-simple" class="mx-2 hover:underline">Clients</a>
+                <a href="/transactions-simple" class="mx-2 hover:underline">Transactions</a>
+                <a href="/statements-simple" class="mx-2 hover:underline">Statements</a>
+                <a href="/logout" class="mx-2 hover:underline">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto py-6 px-4">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="mb-4 p-4 rounded-md {% if category == 'error' %}bg-red-100 text-red-700{% elif category == 'success' %}bg-green-100 text-green-700{% else %}bg-blue-100 text-blue-700{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h1 class="text-2xl font-bold text-gray-800 mb-6">{{ title }}</h1>
+            
+            <form method="POST" class="space-y-4">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div>
+                    <label for="name" class="block text-sm font-medium text-gray-700">Client Name <span class="text-red-500">*</span></label>
+                    <input type="text" id="name" name="name" required 
+                           value="{{ client.name if client else (form_data.name if form_data else '') }}"
+                           class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+                    <input type="email" id="email" name="email" 
+                           value="{{ client.email if client else (form_data.email if form_data else '') }}"
+                           class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                
+                <div>
+                    <label for="phone" class="block text-sm font-medium text-gray-700">Phone</label>
+                    <input type="text" id="phone" name="phone" 
+                           value="{{ client.phone if client else (form_data.phone if form_data else '') }}"
+                           class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                
+                <div>
+                    <label for="address" class="block text-sm font-medium text-gray-700">Address</label>
+                    <textarea id="address" name="address" rows="3" 
+                              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">{{ client.address if client else (form_data.address if form_data else '') }}</textarea>
+                </div>
+                
+                <div class="flex justify-end space-x-3 pt-4">
+                    <a href="/clients-simple" class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Cancel
+                    </a>
+                    <button type="submit" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        {% if client %}Update{% else %}Save{% endif %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </main>
+</body>
+</html> 

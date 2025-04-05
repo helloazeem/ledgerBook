@@ -1,0 +1,13 @@
+Flask==2.3.2
+Flask-SQLAlchemy==3.0.5
+Flask-Login==0.6.2
+Flask-WTF==1.1.1
+# Keep psycopg2-binary for when we switch back to PostgreSQL
+psycopg2-binary==2.9.10
+# Add Werkzeug (Flask dependency) explicitly to avoid version mismatches
+Werkzeug==2.3.6
+Flask-Migrate==4.0.4
+reportlab==3.6.12
+WeasyPrint==59.0
+pdfkit==1.0.0
+email-validator==2.0.0 
