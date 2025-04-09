@@ -8,11 +8,13 @@
     border-left-width: 4px;
     border-left-style: solid;
     border-left-color: transparent;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   }
   
   .todo-item:hover {
     transform: translateX(5px);
     border-left-color: #3b82f6;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.1);
   }
   
   .todo-item.completed {
@@ -32,20 +34,37 @@
   
   /* Filter button styles */
   .filter-btn {
-    background-color: #f3f4f6;
+    background-color: white;
     color: #6b7280;
     transition: all 0.2s ease;
-    border: 2px solid transparent;
+    border: 1px solid transparent;
+    position: relative;
+    font-weight: 500;
   }
   
   .filter-btn:hover {
-    background-color: #e5e7eb;
+    background-color: #f3f4f6;
+    transform: translateY(-1px);
   }
   
   .filter-btn.active {
     background-color: #3b82f6;
     color: white;
     border-color: #2563eb;
+    font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  .filter-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 8px;
+    height: 8px;
+    background-color: #3b82f6;
+    border-radius: 50%;
   }
   
   /* Sort button styles */
@@ -55,6 +74,16 @@
   
   .sort-desc svg {
     transform: rotate(180deg);
+  }
+  
+  /* Todo actions */
+  .todo-actions {
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+  }
+  
+  .todo-item:hover .todo-actions {
+    opacity: 1;
   }
   
   /* Popup styles */
@@ -86,6 +115,55 @@
   .todo-checkbox:checked + div h3 {
     text-decoration: line-through;
     color: #9ca3af;
+  }
+  
+  /* Custom checkbox styles */
+  .todo-checkbox {
+    appearance: none;
+    -webkit-appearance: none;
+    position: relative;
+    width: 1.25rem;
+    height: 1.25rem;
+    border: 2px solid #cbd5e1;
+    border-radius: 9999px;
+    background-color: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    outline: none;
+  }
+  
+  .todo-checkbox:checked {
+    border-color: #3b82f6;
+    background-color: #3b82f6;
+  }
+  
+  .todo-checkbox:checked::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 9999px;
+    background-color: white;
+  }
+  
+  /* Add Task Button Animation */
+  .add-todo-btn {
+    transition: all 0.3s ease;
+  }
+  
+  .add-todo-btn:hover {
+    transform: translateY(-2px);
+  }
+  
+  .add-todo-btn:hover svg {
+    transform: rotate(90deg);
+  }
+  
+  .add-todo-btn svg {
+    transition: transform 0.3s ease;
   }
   
   /* Responsive style adjustments */
@@ -261,9 +339,14 @@
     <div>
         <!-- To-Do List -->
         <div class="bg-white rounded-lg shadow-md overflow-hidden mb-6">
-            <div class="border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-                <h2 class="text-xl font-semibold text-gray-800">Todo List</h2>
-                <button onclick="showTodoPopup()" class="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+            <div class="border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 flex justify-between items-center">
+                <h2 class="text-xl font-semibold text-gray-800 flex items-center">
+                    <svg class="w-6 h-6 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                    </svg>
+                    Todo List
+                </h2>
+                <button onclick="showTodoPopup()" class="add-todo-btn flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
                     <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                     </svg>
@@ -272,40 +355,62 @@
             </div>
             
             <!-- Filter and Sort Controls -->
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                <!-- Filter Buttons -->
-                <div class="flex flex-wrap gap-2">
-                    <button onclick="filterTodos('all')" class="filter-btn active px-4 py-2 rounded-lg text-sm font-medium transition-colors" data-filter="all">
-                        All
-                    </button>
-                    <button onclick="filterTodos('active')" class="filter-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors" data-filter="active">
-                        Active
-                    </button>
-                    <button onclick="filterTodos('completed')" class="filter-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors" data-filter="completed">
-                        Completed
-                    </button>
-                    <button onclick="filterTodos('overdue')" class="filter-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors" data-filter="overdue">
-                        Overdue
-                    </button>
+            <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <!-- Filter Buttons -->
+                    <div class="relative flex flex-wrap gap-1 bg-white p-1 rounded-lg shadow-sm border border-gray-200">
+                        <button onclick="filterTodos('all')" class="filter-btn active px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1" data-filter="all">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path>
+                            </svg>
+                            All
+                        </button>
+                        <button onclick="filterTodos('active')" class="filter-btn px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1" data-filter="active">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            Active
+                        </button>
+                        <button onclick="filterTodos('completed')" class="filter-btn px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1" data-filter="completed">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            Completed
+                        </button>
+                        <button onclick="filterTodos('overdue')" class="filter-btn px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1" data-filter="overdue">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            Overdue
+                        </button>
+                    </div>
+                    
+                    <!-- Sort Controls -->
+                    <div class="flex items-center gap-2 bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
+                        <select id="sortSelect" onchange="sortTodos()" class="px-3 py-2 rounded-md border-none text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 bg-transparent">
+                            <option value="due_date">Sort by Due Date</option>
+                            <option value="title">Sort by Title</option>
+                            <option value="priority">Sort by Priority</option>
+                        </select>
+                        <button onclick="toggleSortDirection()" id="sortDirection" class="p-2 rounded-md hover:bg-gray-100 transition-colors">
+                            <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
                 
-                <!-- Sort Controls -->
-                <div class="flex items-center gap-2">
-                    <select id="sortSelect" onchange="sortTodos()" class="px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="due_date">Sort by Due Date</option>
-                        <option value="title">Sort by Title</option>
-                        <option value="priority">Sort by Priority</option>
-                    </select>
-                    <button onclick="toggleSortDirection()" id="sortDirection" class="p-2 rounded-lg hover:bg-gray-100 transition-colors">
-                        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
-                        </svg>
-                    </button>
+                <!-- Current Filter Indicator -->
+                <div class="text-sm text-gray-500 italic mt-2 flex items-center" id="currentFilterText">
+                    <svg class="w-4 h-4 mr-1 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Viewing all tasks
                 </div>
             </div>
             
             <!-- Todo List -->
-            <div id="todoList" class="space-y-3">
+            <div id="todoList" class="space-y-3 px-6 py-4 max-h-[480px] overflow-y-auto">
                 {% for todo in todos %}
                 <div class="todo-item bg-white rounded-lg shadow-sm border border-gray-200 p-4 transition-all duration-200 hover:shadow-md" 
                      data-id="{{ todo.id }}" 
@@ -314,9 +419,9 @@
                      data-priority="{{ todo.priority }}">
                     <div class="flex items-start gap-3">
                         <!-- Checkbox -->
-                        <div class="flex-shrink-0">
+                        <div class="flex-shrink-0 pt-0.5">
                             <input type="checkbox" 
-                                   class="todo-checkbox w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                   class="todo-checkbox w-5 h-5 rounded-full border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                                    {% if todo.is_completed %}checked{% endif %}
                                    data-id="{{ todo.id }}"
                                    onchange="toggleTodo(this.dataset.id, this.checked)">
@@ -328,22 +433,37 @@
                                 <h3 class="text-base font-medium text-gray-900 {% if todo.is_completed %}line-through text-gray-500{% endif %}">
                                     {{ todo.title }}
                                 </h3>
-                                <div class="flex items-center gap-2">
+                                <div class="flex items-center gap-2 todo-actions">
                                     {% if todo.priority == 'high' %}
-                                    <span class="px-2 py-1 text-xs font-medium text-red-700 bg-red-100 rounded-full">High</span>
+                                    <span class="px-2 py-1 text-xs font-medium text-red-700 bg-red-100 rounded-full flex items-center gap-1">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                                        </svg>
+                                        High
+                                    </span>
                                     {% elif todo.priority == 'medium' %}
-                                    <span class="px-2 py-1 text-xs font-medium text-yellow-700 bg-yellow-100 rounded-full">Medium</span>
+                                    <span class="px-2 py-1 text-xs font-medium text-yellow-700 bg-yellow-100 rounded-full flex items-center gap-1">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z"></path>
+                                        </svg>
+                                        Medium
+                                    </span>
                                     {% else %}
-                                    <span class="px-2 py-1 text-xs font-medium text-green-700 bg-green-100 rounded-full">Low</span>
+                                    <span class="px-2 py-1 text-xs font-medium text-green-700 bg-green-100 rounded-full flex items-center gap-1">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"></path>
+                                        </svg>
+                                        Low
+                                    </span>
                                     {% endif %}
                                     
-                                    <button data-id="{{ todo.id }}" class="edit-todo-btn p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <button data-id="{{ todo.id }}" class="edit-todo-btn p-1.5 text-gray-400 hover:text-blue-600 rounded-full hover:bg-blue-50 transition-colors">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
                                         </svg>
                                     </button>
-                                    <button data-id="{{ todo.id }}" class="delete-todo-btn p-1 text-gray-400 hover:text-red-600 rounded-lg hover:bg-gray-100 transition-colors">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <button data-id="{{ todo.id }}" class="delete-todo-btn p-1.5 text-gray-400 hover:text-red-600 rounded-full hover:bg-red-50 transition-colors">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                                         </svg>
                                     </button>
@@ -364,6 +484,11 @@
                                 <span class="text-sm {% if todo.is_overdue %}text-red-600 font-medium{% elif todo.is_completed %}text-gray-400{% else %}text-gray-600{% endif %}">
                                     Due: {{ todo.due_date.strftime('%b %d, %Y') }}
                                 </span>
+                                {% if todo.is_overdue and not todo.is_completed %}
+                                <span class="px-2 py-0.5 text-xs font-semibold text-red-800 bg-red-100 rounded-full animate-pulse">
+                                    Overdue
+                                </span>
+                                {% endif %}
                             </div>
                         {% endif %}
                         </div>
@@ -415,54 +540,86 @@
 
 <!-- Todo Popup -->
 <div id="todoPopup" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 transform transition-all">
-        <div class="p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-medium text-gray-900" id="popupTitle">New Task</h3>
-                <button onclick="hideTodoPopup()" class="text-gray-400 hover:text-gray-500">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div class="bg-white rounded-xl shadow-xl max-w-lg w-full mx-4 transform transition-all">
+        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200 rounded-t-xl">
+            <div class="flex justify-between items-center">
+                <h3 class="text-lg font-semibold text-gray-900 flex items-center" id="popupTitle">
+                    <svg class="w-5 h-5 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
+                    New Task
+                </h3>
+                <button onclick="hideTodoPopup()" class="text-gray-400 hover:text-gray-500 p-1 rounded-full hover:bg-gray-100 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
                 </button>
             </div>
+        </div>
+        <div class="p-6">
             <form id="todoForm" onsubmit="handleTodoSubmit(event)" class="space-y-4">
                 <input type="hidden" id="todoId" name="id">
                 <div>
-                    <label for="title" class="block text-sm font-medium text-gray-700">Title</label>
-                    <input type="text" id="title" name="title" required
-                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    <label for="title" class="block text-sm font-medium text-gray-700 flex items-center">
+                        <svg class="w-4 h-4 mr-1 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                        </svg>
+                        Title <span class="text-red-500 ml-1">*</span>
+                    </label>
+                    <input type="text" id="title" name="title" required 
+                           class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm transition-all duration-200">
                 </div>
                 <div>
-                    <label for="description" class="block text-sm font-medium text-gray-700">Description</label>
+                    <label for="description" class="block text-sm font-medium text-gray-700 flex items-center">
+                        <svg class="w-4 h-4 mr-1 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path>
+                        </svg>
+                        Description
+                    </label>
                     <textarea id="description" name="description" rows="3"
-                              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                              class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm transition-all duration-200"></textarea>
                 </div>
                 <div>
-                    <label for="due_date" class="block text-sm font-medium text-gray-700">Due Date</label>
+                    <label for="due_date" class="block text-sm font-medium text-gray-700 flex items-center">
+                        <svg class="w-4 h-4 mr-1 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                        Due Date
+                    </label>
                     <input type="date" id="due_date" name="due_date"
-                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                           class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm transition-all duration-200">
                 </div>
                 <div>
-                    <label for="priority" class="block text-sm font-medium text-gray-700">Priority</label>
+                    <label for="priority" class="block text-sm font-medium text-gray-700 flex items-center">
+                        <svg class="w-4 h-4 mr-1 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path>
+                        </svg>
+                        Priority
+                    </label>
                     <select id="priority" name="priority"
-                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm transition-all duration-200">
                         <option value="low">Low</option>
                         <option value="medium" selected>Medium</option>
                         <option value="high">High</option>
                     </select>
                 </div>
                 <div class="flex items-center">
-                    <input type="checkbox" id="is_completed" name="is_completed"
-                           class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-                    <label for="is_completed" class="ml-2 block text-sm text-gray-700">Mark as completed</label>
+                    <div class="bg-white border-2 rounded-full border-gray-300 w-5 h-5 flex flex-shrink-0 justify-center items-center mr-2 focus-within:border-blue-500">
+                        <input type="checkbox" id="is_completed" name="is_completed"
+                               class="opacity-0 absolute h-5 w-5 cursor-pointer">
+                        <svg class="fill-current hidden w-3 h-3 text-blue-600 pointer-events-none" viewBox="0 0 20 20">
+                            <path d="M0 11l2-2 5 5L18 3l2 2L7 18z"/>
+                        </svg>
+                    </div>
+                    <label for="is_completed" class="select-none text-sm text-gray-700">Mark as completed</label>
                 </div>
                 <div class="flex justify-end gap-3 mt-6">
                     <button type="button" onclick="hideTodoPopup()"
-                            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200">
                         Cancel
                     </button>
                     <button type="submit"
-                            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-sm transition-all duration-200">
                         Save
                     </button>
                 </div>
@@ -530,6 +687,21 @@ function filterTodos(filter) {
         const isActive = btn.getAttribute('data-filter') === filter;
         btn.classList.toggle('active', isActive);
     });
+    
+    // Update filter indicator text
+    const filterTextMap = {
+        'all': 'Viewing all tasks',
+        'active': 'Viewing active tasks',
+        'completed': 'Viewing completed tasks',
+        'overdue': 'Viewing overdue tasks'
+    };
+    
+    document.getElementById('currentFilterText').innerHTML = `
+        <svg class="w-4 h-4 mr-1 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        ${filterTextMap[filter] || 'Viewing all tasks'}
+    `;
     
     // Show/hide todos based on filter
     let visibleCount = 0;
@@ -659,9 +831,19 @@ function showTodoPopup(todoId = null) {
     form.reset();
     document.getElementById('todoId').value = '';
     
+    // Initialize custom checkbox
+    const checkbox = document.getElementById('is_completed');
+    const checkmark = checkbox.nextElementSibling;
+    updateCustomCheckbox(checkbox, checkmark);
+    
     if (todoId) {
         // Edit mode
-        title.textContent = 'Edit Task';
+        title.innerHTML = `
+            <svg class="w-5 h-5 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+            </svg>
+            Edit Task
+        `;
         const todo = document.querySelector(`.todo-item[data-id="${todoId}"]`);
         if (todo) {
             document.getElementById('todoId').value = todoId;
@@ -669,16 +851,41 @@ function showTodoPopup(todoId = null) {
             document.getElementById('description').value = todo.querySelector('p')?.textContent.trim() || '';
             document.getElementById('due_date').value = todo.dataset.dueDate || '';
             document.getElementById('priority').value = todo.dataset.priority;
-            document.getElementById('is_completed').checked = todo.dataset.completed === 'true';
+            
+            // Set checkbox and update visual
+            checkbox.checked = todo.dataset.completed === 'true';
+            updateCustomCheckbox(checkbox, checkmark);
         }
     } else {
         // New task mode
-        title.textContent = 'New Task';
+        title.innerHTML = `
+            <svg class="w-5 h-5 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+            </svg>
+            New Task
+        `;
     }
     
     popup.classList.remove('hidden');
     popup.classList.add('flex');
 }
+
+// Function to update custom checkbox visuals
+function updateCustomCheckbox(checkbox, checkmark) {
+    if (checkbox && checkmark) {
+        checkmark.classList.toggle('hidden', !checkbox.checked);
+    }
+}
+
+// Add event listener for checkbox changes
+document.addEventListener('DOMContentLoaded', function() {
+    const checkbox = document.getElementById('is_completed');
+    const checkmark = checkbox.nextElementSibling;
+    
+    checkbox.addEventListener('change', function() {
+        updateCustomCheckbox(this, checkmark);
+    });
+});
 
 function hideTodoPopup() {
     const popup = document.getElementById('todoPopup');
