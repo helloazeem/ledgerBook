@@ -7,6 +7,8 @@ import enum
 import uuid
 import tempfile
 import io
+from io import StringIO
+import csv
 
 # Try to import WeasyPrint, but completely skip it if not available
 try:
@@ -17,7 +19,7 @@ except Exception as e:
     WEASYPRINT_AVAILABLE = False
 
 # Import db and models from models.py
-from models import db, Client, Transaction, User, Todo, TodoPriority, CompanySettings
+from models import db, Client, Transaction, User, Todo, TodoPriority, CompanySettings, ClientBank
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -172,37 +174,71 @@ def dashboard():
         flash('Please create a company first.', 'warning')
         return redirect(url_for('add_company'))
     
-    # Get clients for this company
-    clients = Client.query.filter_by(company_id=company.id).all()
-    
-    # Get todos for the current user
-    todos = Todo.query.filter_by(user_id=current_user.id).order_by(Todo.position, Todo.created_at).all()
+    # Use SQLAlchemy functions to optimize queries with fewer database calls
     today = datetime.now().date()
     
-    # Recent transactions for this company
-    recent_transactions = Transaction.query.join(Client).filter(
-        Client.company_id == company.id
-    ).order_by(Transaction.date.desc()).limit(5).all()
+    # Use eager loading with joinedload to reduce N+1 query problem
+    # Get clients for this company with transactions preloaded
+    clients = Client.query.filter_by(company_id=company.id).all()
     
-    # Overdue invoices for this company
-    overdue_invoices = Transaction.query.join(Client).filter(
+    # Get todos for the current user - add indexing by priority
+    todos = Todo.query.filter_by(user_id=current_user.id).order_by(
+        Todo.position, 
+        Todo.created_at
+    ).all()
+    
+    # Recent transactions with client data in a single query using join
+    recent_transactions = db.session.query(Transaction).join(
+        Client
+    ).options(
+        db.joinedload(Transaction.client)  # Eager load client data
+    ).filter(
+        Client.company_id == company.id
+    ).order_by(
+        Transaction.date.desc()
+    ).limit(5).all()
+    
+    # Optimize overdue invoices query with joined loading
+    overdue_invoices = db.session.query(Transaction).join(
+        Client
+    ).options(
+        db.joinedload(Transaction.client)  # Eager load client data
+    ).filter(
         Client.company_id == company.id,
         Transaction.status == 'overdue',
         Transaction.is_paid == False
-    ).order_by(Transaction.due_date).all()
+    ).order_by(
+        Transaction.due_date
+    ).all()
     
-    # Calculate total balance and overdue amounts for this company
-    total_balance = 0
-    overdue_amount = 0
+    # Calculate total balance and overdue amounts more efficiently
+    # Use SQL aggregation to calculate totals in a single query
+    total_balance_result = db.session.query(
+        db.func.sum(Transaction.balance)
+    ).join(
+        Client
+    ).filter(
+        Client.company_id == company.id,
+        Transaction.id.in_(
+            db.session.query(db.func.max(Transaction.id)).group_by(Transaction.client_id)
+        )
+    ).scalar()
     
-    for client in clients:
-        latest_transaction = client.transactions.order_by(Transaction.date.desc(), Transaction.id.desc()).first()
-        if latest_transaction:
-            total_balance += latest_transaction.balance
-            
-    for invoice in overdue_invoices:
-        if invoice.debit:
-            overdue_amount += invoice.debit
+    total_balance = total_balance_result or 0
+    
+    # Calculate overdue amount in a single query
+    overdue_amount_result = db.session.query(
+        db.func.sum(Transaction.debit)
+    ).join(
+        Client
+    ).filter(
+        Client.company_id == company.id,
+        Transaction.status == 'overdue',
+        Transaction.is_paid == False,
+        Transaction.debit.isnot(None)
+    ).scalar()
+    
+    overdue_amount = overdue_amount_result or 0
     
     return render_template('dashboard.html', 
                           clients=clients, 
@@ -357,6 +393,204 @@ def delete_client(client_id):
         flash(f'Error deleting client: {e}', 'error')
     
     return redirect(url_for('list_clients'))
+
+# Bank Account Management Routes
+@app.route('/clients/<int:client_id>/banks')
+@login_required
+def client_banks(client_id):
+    client = Client.query.filter_by(id=client_id).first_or_404()
+    
+    # Check if client belongs to active company
+    if client.company_id != current_user.active_company_id:
+        flash('Access denied. This client does not belong to your active company.', 'error')
+        return redirect(url_for('list_clients'))
+    
+    bank_accounts = ClientBank.query.filter_by(client_id=client_id).order_by(ClientBank.is_primary.desc(), ClientBank.bank_name).all()
+    
+    return render_template('client_banks.html', 
+                          client=client, 
+                          bank_accounts=bank_accounts,
+                          title=f"Bank Accounts - {client.name}")
+
+@app.route('/clients/<int:client_id>/banks/add', methods=['GET', 'POST'])
+@login_required
+def add_bank(client_id):
+    client = Client.query.filter_by(id=client_id).first_or_404()
+    
+    # Check if client belongs to active company
+    if client.company_id != current_user.active_company_id:
+        flash('Access denied. This client does not belong to your active company.', 'error')
+        return redirect(url_for('list_clients'))
+    
+    if request.method == 'POST':
+        bank_name = request.form.get('bank_name', '').strip()
+        account_name = request.form.get('account_name', '').strip()
+        account_number = request.form.get('account_number', '').strip()
+        branch = request.form.get('branch', '').strip()
+        location = request.form.get('location', '').strip()
+        routing_number = request.form.get('routing_number', '').strip()
+        is_primary = 'is_primary' in request.form
+        
+        # Form validation
+        if not bank_name or not account_name or not account_number:
+            flash('Bank name, account name, and account number are required.', 'error')
+            return render_template('bank_form.html', 
+                                  client=client,
+                                  form_data=request.form)
+        
+        try:
+            # If this is marked as primary, unset all other primary flags
+            if is_primary:
+                db.session.execute(
+                    db.update(ClientBank)
+                    .where(ClientBank.client_id == client_id)
+                    .values(is_primary=False)
+                )
+            
+            # Create new bank account
+            new_bank = ClientBank(
+                client_id=client_id,
+                bank_name=bank_name,
+                account_name=account_name,
+                account_number=account_number,
+                branch=branch,
+                location=location,
+                routing_number=routing_number,
+                is_primary=is_primary
+            )
+            
+            db.session.add(new_bank)
+            db.session.commit()
+            
+            flash(f'Bank account added successfully.', 'success')
+            return redirect(url_for('client_banks', client_id=client_id))
+            
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Error adding bank account: {str(e)}")
+            flash('There was an error adding the bank account. Please try again.', 'error')
+            
+    return render_template('bank_form.html', 
+                          client=client,
+                          title="Add Bank Account")
+
+@app.route('/clients/<int:client_id>/banks/<int:bank_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_bank(client_id, bank_id):
+    client = Client.query.filter_by(id=client_id).first_or_404()
+    
+    # Check if client belongs to active company
+    if client.company_id != current_user.active_company_id:
+        flash('Access denied. This client does not belong to your active company.', 'error')
+        return redirect(url_for('list_clients'))
+    
+    # Get bank account and verify ownership
+    bank = ClientBank.query.filter_by(id=bank_id, client_id=client_id).first_or_404()
+    
+    if request.method == 'POST':
+        bank_name = request.form.get('bank_name', '').strip()
+        account_name = request.form.get('account_name', '').strip()
+        account_number = request.form.get('account_number', '').strip()
+        branch = request.form.get('branch', '').strip()
+        location = request.form.get('location', '').strip()
+        routing_number = request.form.get('routing_number', '').strip()
+        is_primary = 'is_primary' in request.form
+        
+        # Form validation
+        if not bank_name or not account_name or not account_number:
+            flash('Bank name, account name, and account number are required.', 'error')
+            return render_template('bank_form.html', 
+                                  client=client,
+                                  bank=bank)
+        
+        try:
+            # If this is marked as primary, unset all other primary flags
+            if is_primary and not bank.is_primary:
+                db.session.execute(
+                    db.update(ClientBank)
+                    .where(ClientBank.client_id == client_id)
+                    .values(is_primary=False)
+                )
+            
+            # Update bank account
+            bank.bank_name = bank_name
+            bank.account_name = account_name
+            bank.account_number = account_number
+            bank.branch = branch
+            bank.location = location
+            bank.routing_number = routing_number
+            bank.is_primary = is_primary
+            
+            db.session.commit()
+            
+            flash(f'Bank account updated successfully.', 'success')
+            return redirect(url_for('client_banks', client_id=client_id))
+            
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Error updating bank account: {str(e)}")
+            flash('There was an error updating the bank account. Please try again.', 'error')
+            
+    return render_template('bank_form.html', 
+                          client=client,
+                          bank=bank,
+                          title="Edit Bank Account")
+
+@app.route('/clients/<int:client_id>/banks/<int:bank_id>/delete', methods=['POST'])
+@login_required
+def delete_bank(client_id, bank_id):
+    client = Client.query.filter_by(id=client_id).first_or_404()
+    
+    # Check if client belongs to active company
+    if client.company_id != current_user.active_company_id:
+        flash('Access denied. This client does not belong to your active company.', 'error')
+        return redirect(url_for('list_clients'))
+    
+    # Get bank account and verify ownership
+    bank = ClientBank.query.filter_by(id=bank_id, client_id=client_id).first_or_404()
+    
+    try:
+        was_primary = bank.is_primary
+        
+        # Delete bank account
+        db.session.delete(bank)
+        
+        # If this was the primary account, set another one as primary if available
+        if was_primary:
+            next_bank = ClientBank.query.filter_by(client_id=client_id).first()
+            if next_bank:
+                next_bank.is_primary = True
+        
+        db.session.commit()
+        flash('Bank account deleted successfully.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error deleting bank account: {str(e)}")
+        flash(f'Error deleting bank account: {e}', 'error')
+        
+    return redirect(url_for('client_banks', client_id=client_id))
+
+@app.route('/api/banks/<int:bank_id>')
+@login_required
+def api_get_bank(bank_id):
+    # Get bank details for AJAX requests (used in popup modal)
+    bank = ClientBank.query.filter_by(id=bank_id).first_or_404()
+    
+    # Check if bank belongs to a client in the active company
+    client = Client.query.filter_by(id=bank.client_id).first_or_404()
+    if client.company_id != current_user.active_company_id:
+        return jsonify({"error": "Access denied"}), 403
+    
+    return jsonify({
+        "id": bank.id,
+        "bank_name": bank.bank_name,
+        "account_name": bank.account_name,
+        "account_number": bank.account_number,
+        "branch": bank.branch or "",
+        "location": bank.location or "",
+        "routing_number": bank.routing_number or "",
+        "is_primary": bank.is_primary
+    })
 
 # Transaction Management Routes
 @app.route('/transactions')
@@ -792,29 +1026,38 @@ def view_statement():
 @login_required
 def add_todo():
     if request.method == 'POST':
-        title = request.form.get('title')
-        description = request.form.get('description')
-        due_date_str = request.form.get('due_date')
+        title = request.form.get('title', '').strip()
+        description = request.form.get('description', '').strip()
+        due_date_str = request.form.get('due_date', '').strip()
+        priority = request.form.get('priority', TodoPriority.MEDIUM.value)
         is_completed = 'is_completed' in request.form
         
+        # Form validation
         if not title:
             flash('Task title is required.', 'error')
-            return render_template('todo_form.html')
+            return render_template('todo_form.html', 
+                                  form_data={'description': description, 'due_date': due_date_str, 'priority': priority})
+        
+        # Validate priority
+        if priority not in [p.value for p in TodoPriority]:
+            priority = TodoPriority.MEDIUM.value
         
         todo = Todo(
             user_id=current_user.id,
             title=title,
             description=description,
             is_completed=is_completed,
-            priority=TodoPriority.MEDIUM.value
+            priority=priority
         )
         
+        # Handle due date parsing
         if due_date_str:
             try:
                 todo.due_date = datetime.strptime(due_date_str, '%Y-%m-%d')
             except ValueError:
                 flash('Invalid date format. Please use YYYY-MM-DD.', 'error')
-                return render_template('todo_form.html')
+                return render_template('todo_form.html', 
+                                      form_data={'title': title, 'description': description, 'priority': priority})
         
         # Get the highest position number and add 1
         max_position = db.session.query(db.func.max(Todo.position)).filter(
@@ -829,37 +1072,46 @@ def add_todo():
             return redirect(url_for('dashboard'))
         except Exception as e:
             db.session.rollback()
-            flash(f'Error adding task: {str(e)}', 'error')
+            app.logger.error(f"Error adding todo: {str(e)}")
+            flash('There was an error adding your task. Please try again.', 'error')
             
     return render_template('todo_form.html')
 
 @app.route('/todos/<int:todo_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_todo(todo_id):
-    todo = Todo.query.get_or_404(todo_id)
-    
-    # Security check - make sure the todo belongs to current user
-    if todo.user_id != current_user.id:
-        flash('You do not have permission to edit this task.', 'error')
-        return redirect(url_for('dashboard'))
+    # Use a single database query with first_or_404 to handle the case when todo doesn't exist
+    todo = Todo.query.filter_by(id=todo_id, user_id=current_user.id).first_or_404()
     
     if request.method == 'POST':
-        title = request.form.get('title')
-        description = request.form.get('description')
-        due_date_str = request.form.get('due_date')
+        title = request.form.get('title', '').strip()
+        description = request.form.get('description', '').strip()
+        due_date_str = request.form.get('due_date', '').strip()
+        priority = request.form.get('priority', todo.priority)
         is_completed = 'is_completed' in request.form
         
+        # Form validation
         if not title:
             flash('Task title is required.', 'error')
             return render_template('todo_form.html', todo=todo)
+        
+        # Validate priority
+        if priority not in [p.value for p in TodoPriority]:
+            priority = todo.priority
         
         try:
             todo.title = title
             todo.description = description
             todo.is_completed = is_completed
+            todo.priority = priority
             
+            # Handle due date parsing
             if due_date_str:
-                todo.due_date = datetime.strptime(due_date_str, '%Y-%m-%d')
+                try:
+                    todo.due_date = datetime.strptime(due_date_str, '%Y-%m-%d')
+                except ValueError:
+                    flash('Invalid date format. Please use YYYY-MM-DD.', 'error')
+                    return render_template('todo_form.html', todo=todo)
             else:
                 todo.due_date = None
             
@@ -868,75 +1120,126 @@ def edit_todo(todo_id):
             return redirect(url_for('dashboard'))
         except Exception as e:
             db.session.rollback()
-            flash(f'Error updating task: {str(e)}', 'error')
+            app.logger.error(f"Error updating todo: {str(e)}")
+            flash('There was an error updating your task. Please try again.', 'error')
             
     return render_template('todo_form.html', todo=todo)
 
 @app.route('/todos/<int:todo_id>/toggle', methods=['POST'])
 @login_required
 def toggle_todo(todo_id):
-    todo = Todo.query.get_or_404(todo_id)
-    
-    if todo.user_id != current_user.id:
-        return jsonify({"success": False, "message": "Unauthorized"}), 403
+    # Check if request has proper JSON content type
+    if not request.is_json:
+        return jsonify({"success": False, "message": "Invalid request format, expected JSON"}), 400
     
     try:
         data = request.get_json()
-        is_completed = data.get('is_completed', False)
+        if data is None:
+            return jsonify({"success": False, "message": "Missing request data"}), 400
+            
+        is_completed = data.get('is_completed')
+        if is_completed is None:
+            return jsonify({"success": False, "message": "Missing is_completed parameter"}), 400
+            
+        # Use a single database query to find and verify the todo
+        todo = Todo.query.filter_by(id=todo_id, user_id=current_user.id).first()
+        
+        if not todo:
+            return jsonify({"success": False, "message": "Task not found or access denied"}), 404
         
         todo.is_completed = is_completed
         db.session.commit()
         
-        return jsonify({"success": True})
+        return jsonify({"success": True, "data": {"id": todo.id, "is_completed": todo.is_completed}})
     except Exception as e:
         db.session.rollback()
-        return jsonify({"success": False, "message": str(e)}), 500
+        app.logger.error(f"Error toggling todo {todo_id}: {str(e)}")
+        return jsonify({"success": False, "message": "An error occurred while updating the task"}), 500
 
 @app.route('/todos/<int:todo_id>/position', methods=['POST'])
 @login_required
 def update_todo_position(todo_id):
-    todo = Todo.query.get_or_404(todo_id)
-    
-    if todo.user_id != current_user.id:
-        return jsonify({"success": False, "message": "Unauthorized"}), 403
-    
+    # Check if request has proper JSON content type
+    if not request.is_json:
+        return jsonify({"success": False, "message": "Invalid request format, expected JSON"}), 400
+        
     try:
         data = request.get_json()
+        if data is None:
+            return jsonify({"success": False, "message": "Missing request data"}), 400
+            
         new_position = data.get('position')
         todo_order = data.get('order', [])
         
-        if new_position is not None:
-            # Update the positions of all todos based on the new order
-            for i, id_str in enumerate(todo_order):
-                todo_id = int(id_str)
-                t = Todo.query.get(todo_id)
-                if t and t.user_id == current_user.id:
-                    t.position = i
-            
-            db.session.commit()
-            return jsonify({"success": True})
-        else:
-            return jsonify({"success": False, "message": "Position data is required"}), 400
+        if new_position is None or not todo_order:
+            return jsonify({"success": False, "message": "Position and order data are required"}), 400
+        
+        # First verify the todo exists and belongs to the current user
+        todo = Todo.query.filter_by(id=todo_id, user_id=current_user.id).first()
+        if not todo:
+            return jsonify({"success": False, "message": "Task not found or access denied"}), 404
+        
+        # Verify all todos in the order belong to the current user
+        # Convert all IDs to integers and filter out any that don't belong to the user
+        todo_ids = [int(id_str) for id_str in todo_order if id_str.isdigit()]
+        valid_todos = Todo.query.filter(Todo.id.in_(todo_ids), Todo.user_id == current_user.id).all()
+        valid_todo_ids = {t.id for t in valid_todos}
+        
+        # Update positions in a single transaction
+        for i, id_str in enumerate(todo_order):
+            if not id_str.isdigit():
+                continue
+                
+            curr_todo_id = int(id_str)
+            if curr_todo_id not in valid_todo_ids:
+                continue
+                
+            # Bulk update is more efficient than individual updates
+            db.session.execute(
+                db.update(Todo)
+                .where(Todo.id == curr_todo_id)
+                .values(position=i)
+            )
+        
+        db.session.commit()
+        return jsonify({"success": True})
     except Exception as e:
         db.session.rollback()
-        return jsonify({"success": False, "message": str(e)}), 500
+        app.logger.error(f"Error updating todo position: {str(e)}")
+        return jsonify({"success": False, "message": "An error occurred while updating the task order"}), 500
 
 @app.route('/todos/<int:todo_id>/delete', methods=['POST'])
 @login_required
 def delete_todo(todo_id):
-    todo = Todo.query.get_or_404(todo_id)
-    
-    # Security check - make sure the todo belongs to current user
-    if todo.user_id != current_user.id:
-        return jsonify({'success': False, 'message': 'Permission denied'}), 403
-    
     try:
+        # Use a single query to find and check ownership
+        todo = Todo.query.filter_by(id=todo_id, user_id=current_user.id).first()
+        
+        if not todo:
+            return jsonify({'success': False, 'message': 'Task not found or access denied'}), 404
+        
+        # Get the position of the todo to be deleted
+        deleted_position = todo.position
+        
+        # Delete the todo
         db.session.delete(todo)
+        
+        # Update positions of remaining todos to maintain sequential ordering
+        db.session.flush()  # Ensure the deletion is processed before the update
+        
+        # Shift all tasks with higher positions down by 1
+        db.session.execute(
+            db.update(Todo)
+            .where(Todo.user_id == current_user.id, Todo.position > deleted_position)
+            .values(position=Todo.position - 1)
+        )
+        
         db.session.commit()
         return jsonify({'success': True})
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'message': str(e)}), 500
+        app.logger.error(f"Error deleting todo {todo_id}: {str(e)}")
+        return jsonify({'success': False, 'message': 'An error occurred while deleting the task'}), 500
 
 # Company Management Routes
 @app.route('/company/settings', methods=['GET', 'POST'])
@@ -1390,6 +1693,65 @@ def initialize_db():
         
         _is_db_initialized = True
 
+# Add this function after all the Todo routes
+@app.route('/todos/export', methods=['GET'])
+@login_required
+def export_todos():
+    try:
+        # Get filter parameter
+        filter_type = request.args.get('filter', 'all')
+        
+        # Base query
+        query = Todo.query.filter_by(user_id=current_user.id)
+        
+        # Apply filters
+        if filter_type == 'active':
+            query = query.filter_by(is_completed=False)
+        elif filter_type == 'completed':
+            query = query.filter_by(is_completed=True)
+        elif filter_type == 'overdue':
+            query = query.filter(
+                Todo.is_completed == False,
+                Todo.due_date.isnot(None),
+                Todo.due_date < datetime.now()
+            )
+            
+        # Get todos ordered by position
+        todos = query.order_by(Todo.position, Todo.created_at).all()
+        
+        # Create a CSV string
+        csv_data = StringIO()
+        csv_writer = csv.writer(csv_data)
+        
+        # Write header
+        csv_writer.writerow(['Title', 'Description', 'Due Date', 'Priority', 'Status', 'Created At'])
+        
+        # Write data
+        for todo in todos:
+            csv_writer.writerow([
+                todo.title,
+                todo.description or '',
+                todo.due_date.strftime('%Y-%m-%d') if todo.due_date else '',
+                todo.priority,
+                'Completed' if todo.is_completed else 'Active',
+                todo.created_at.strftime('%Y-%m-%d %H:%M')
+            ])
+            
+        # Create response
+        response = make_response(csv_data.getvalue())
+        response.headers['Content-Type'] = 'text/csv'
+        response.headers['Content-Disposition'] = f'attachment; filename=todos_{filter_type}_{datetime.now().strftime("%Y%m%d")}.csv'
+        
+        return response
+        
+    except Exception as e:
+        app.logger.error(f"Error exporting todos: {str(e)}")
+        flash('An error occurred while exporting tasks. Please try again.', 'error')
+        return redirect(url_for('dashboard'))
+
 if __name__ == '__main__':
-    print("Starting fresh Flask app...")
-    app.run(debug=True)
+    print("Starting Flask app...")
+    app.run(debug=False, host='0.0.0.0')
+
+# Add WSGI application for cPanel
+application = app

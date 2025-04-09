@@ -1,0 +1,250 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="flex flex-col sm:flex-row justify-between sm:items-center mb-6 gap-4">
+    <div>
+        <h1 class="text-3xl font-bold">{{ title }}</h1>
+        <p class="text-lg text-gray-600">Client: {{ client.name }}</p>
+    </div>
+    <div>
+        <a href="{{ url_for('add_bank', client_id=client.id) }}" class="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-700 active:bg-green-800 focus:outline-none focus:border-green-900 focus:ring ring-green-300 disabled:opacity-25 transition ease-in-out duration-150">
+            Add Bank Account
+        </a>
+    </div>
+</div>
+
+<div class="bg-white shadow-md rounded-lg overflow-hidden">
+    {% if bank_accounts %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bank Name</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Account Name</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Account Number</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch</th>
+                        <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Primary</th>
+                        <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for bank in bank_accounts %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {{ bank.bank_name }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ bank.account_name }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ bank.account_number }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ bank.branch if bank.branch else '-' }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-center">
+                            {% if bank.is_primary %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                Primary
+                            </span>
+                            {% else %}
+                            <span class="text-gray-400">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium space-x-2">
+                            <button type="button" 
+                                    class="text-blue-600 hover:text-blue-900" 
+                                    onclick="showBankDetails({{ bank.id }})" 
+                                    title="View Details">
+                                View
+                            </button>
+                            <a href="{{ url_for('edit_bank', client_id=client.id, bank_id=bank.id) }}" class="text-yellow-600 hover:text-yellow-900" title="Edit Bank">
+                                Edit
+                            </a>
+                            <form action="{{ url_for('delete_bank', client_id=client.id, bank_id=bank.id) }}" method="POST" class="inline" onsubmit="return confirm('Are you sure you want to delete this bank account?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="text-red-600 hover:text-red-900" title="Delete Bank">
+                                    Delete
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="p-6 text-center">
+            <p class="text-gray-500 italic">No bank accounts found for this client. <a href="{{ url_for('add_bank', client_id=client.id) }}" class="text-blue-600 hover:text-blue-800">Add one now</a>.</p>
+        </div>
+    {% endif %}
+</div>
+
+<div class="mt-6">
+    <a href="{{ url_for('view_client_transactions', client_id=client.id) }}" class="text-blue-600 hover:text-blue-800">&laquo; Back to Client Details</a>
+</div>
+
+<!-- Bank Details Modal -->
+<div id="bankModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <h3 class="text-lg font-medium text-gray-900" id="modalTitle">Bank Account Details</h3>
+            <button type="button" class="text-gray-400 hover:text-gray-500" onclick="closeBankModal()">
+                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        <div class="p-6">
+            <dl class="divide-y divide-gray-200">
+                <div class="py-3 flex justify-between">
+                    <dt class="text-sm font-medium text-gray-500">Bank Name</dt>
+                    <dd class="text-sm text-gray-900" id="modalBankName">-</dd>
+                </div>
+                <div class="py-3 flex justify-between">
+                    <dt class="text-sm font-medium text-gray-500">Account Name</dt>
+                    <dd class="text-sm text-gray-900" id="modalAccountName">-</dd>
+                </div>
+                <div class="py-3 flex justify-between">
+                    <dt class="text-sm font-medium text-gray-500">Account Number</dt>
+                    <dd class="text-sm text-gray-900 flex items-center" id="modalAccountNumber">
+                        <span id="accountNumberText">-</span>
+                        <button class="ml-2 text-blue-600 hover:text-blue-800" onclick="copyToClipboard('accountNumberText')" title="Copy">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2" />
+                            </svg>
+                        </button>
+                    </dd>
+                </div>
+                <div class="py-3 flex justify-between" id="branchContainer">
+                    <dt class="text-sm font-medium text-gray-500">Branch</dt>
+                    <dd class="text-sm text-gray-900" id="modalBranch">-</dd>
+                </div>
+                <div class="py-3 flex justify-between" id="locationContainer">
+                    <dt class="text-sm font-medium text-gray-500">Location</dt>
+                    <dd class="text-sm text-gray-900" id="modalLocation">-</dd>
+                </div>
+                <div class="py-3 flex justify-between" id="routingContainer">
+                    <dt class="text-sm font-medium text-gray-500">Routing Number</dt>
+                    <dd class="text-sm text-gray-900 flex items-center" id="modalRoutingNumber">
+                        <span id="routingNumberText">-</span>
+                        <button class="ml-2 text-blue-600 hover:text-blue-800" onclick="copyToClipboard('routingNumberText')" title="Copy">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2" />
+                            </svg>
+                        </button>
+                    </dd>
+                </div>
+            </dl>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-200 flex justify-end">
+            <button type="button" class="px-4 py-2 bg-gray-100 border border-gray-300 rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest hover:bg-gray-200 focus:outline-none focus:ring focus:ring-gray-300 disabled:opacity-25 transition ease-in-out duration-150" onclick="closeBankModal()">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content_javascripts %}
+<script>
+    // Function to show bank details modal
+    function showBankDetails(bankId) {
+        fetch(`/api/banks/${bankId}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                document.getElementById('modalTitle').textContent = `${data.bank_name} Account Details`;
+                document.getElementById('modalBankName').textContent = data.bank_name;
+                document.getElementById('modalAccountName').textContent = data.account_name;
+                
+                const accountNumberEl = document.getElementById('accountNumberText');
+                accountNumberEl.textContent = data.account_number;
+                
+                // Handle optional fields
+                const branchEl = document.getElementById('modalBranch');
+                const branchContainer = document.getElementById('branchContainer');
+                if (data.branch) {
+                    branchEl.textContent = data.branch;
+                    branchContainer.classList.remove('hidden');
+                } else {
+                    branchContainer.classList.add('hidden');
+                }
+                
+                const locationEl = document.getElementById('modalLocation');
+                const locationContainer = document.getElementById('locationContainer');
+                if (data.location) {
+                    locationEl.textContent = data.location;
+                    locationContainer.classList.remove('hidden');
+                } else {
+                    locationContainer.classList.add('hidden');
+                }
+                
+                const routingEl = document.getElementById('routingNumberText');
+                const routingContainer = document.getElementById('routingContainer');
+                if (data.routing_number) {
+                    routingEl.textContent = data.routing_number;
+                    routingContainer.classList.remove('hidden');
+                } else {
+                    routingContainer.classList.add('hidden');
+                }
+                
+                // Show modal
+                document.getElementById('bankModal').classList.remove('hidden');
+            })
+            .catch(error => {
+                console.error('Error fetching bank details:', error);
+                alert('Error loading bank details. Please try again.');
+            });
+    }
+    
+    // Function to close bank details modal
+    function closeBankModal() {
+        document.getElementById('bankModal').classList.add('hidden');
+    }
+    
+    // Function to copy text to clipboard
+    function copyToClipboard(elementId) {
+        const text = document.getElementById(elementId).textContent;
+        
+        // Create temporary element
+        const tempEl = document.createElement('textarea');
+        tempEl.value = text;
+        document.body.appendChild(tempEl);
+        
+        // Select and copy text
+        tempEl.select();
+        document.execCommand('copy');
+        
+        // Remove temporary element
+        document.body.removeChild(tempEl);
+        
+        // Show feedback
+        alert('Copied to clipboard: ' + text);
+    }
+    
+    // Close modal when clicking outside
+    document.addEventListener('click', function(event) {
+        const modal = document.getElementById('bankModal');
+        const modalContent = modal.querySelector('div');
+        
+        if (modal.classList.contains('hidden')) return;
+        
+        // Check if click is outside modal content
+        if (!modalContent.contains(event.target) && modal.contains(event.target)) {
+            closeBankModal();
+        }
+    });
+    
+    // Close modal with ESC key
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' && !document.getElementById('bankModal').classList.contains('hidden')) {
+            closeBankModal();
+        }
+    });
+</script>
+{% endblock %} 

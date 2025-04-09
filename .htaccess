@@ -1,0 +1,34 @@
+# Handle static files directly
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_URI} ^/static/.*
+    RewriteRule ^(.*)$ $1 [L]
+</IfModule>
+
+# Serve static files directly
+<IfModule mod_alias.c>
+    Alias /static/ /home/username/myapp/static/
+    <Directory /home/username/myapp/static>
+        Order allow,deny
+        Allow from all
+    </Directory>
+</IfModule>
+
+# Send all other requests to the Passenger WSGI handler
+<IfModule mod_passenger.c>
+    PassengerEnabled on
+    PassengerAppType wsgi
+    PassengerStartupFile passenger_wsgi.py
+</IfModule>
+
+# PHP settings - disable PHP for this directory
+<IfModule mod_php7.c>
+    php_flag engine off
+</IfModule>
+
+# Force HTTPS
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{HTTPS} !=on
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+</IfModule> 

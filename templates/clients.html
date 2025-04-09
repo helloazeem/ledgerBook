@@ -54,6 +54,7 @@
                             <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium space-x-2">
                                 <a href="{{ url_for('add_transaction', client_id=client.id) }}" class="text-green-600 hover:text-green-900" title="Add Transaction">Txn+</a>
                                 <a href="{{ url_for('generate_statement_form', client_id=client.id) }}" class="text-purple-600 hover:text-purple-900" title="Generate Statement">Stmt</a>
+                                <a href="{{ url_for('client_banks', client_id=client.id) }}" class="text-yellow-600 hover:text-yellow-900" title="Bank Accounts">Bank</a>
                                 <a href="{{ url_for('edit_client', client_id=client.id) }}" class="text-yellow-600 hover:text-yellow-900" title="Edit Client">Edit</a>
                                 <form action="{{ url_for('delete_client', client_id=client.id) }}" method="POST" class="inline" onsubmit="return confirm('Are you sure you want to delete this client and all their transactions?');">
                                     <button type="submit" class="text-red-600 hover:text-red-900" title="Delete Client">Del</button>

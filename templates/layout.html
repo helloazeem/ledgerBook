@@ -41,6 +41,11 @@
     </script>
     
     {% block content_javascripts %}{% endblock %}
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/todo.css') }}">
+    
+    <!-- Font Awesome -->
 </head>
 <body>
     <nav class="bg-white shadow-md">

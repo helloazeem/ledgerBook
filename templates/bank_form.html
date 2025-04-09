@@ -1,0 +1,80 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="bg-white shadow-md rounded-lg overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h1 class="text-2xl font-bold text-gray-800">{{ title if title else (bank and 'Edit Bank Account' or 'Add Bank Account') }}</h1>
+            <p class="text-gray-600">Client: {{ client.name }}</p>
+        </div>
+        
+        <form method="POST" class="p-6">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <div class="mb-4">
+                <label for="bank_name" class="block text-sm font-medium text-gray-700 mb-1">Bank Name <span class="text-red-500">*</span></label>
+                <input type="text" id="bank_name" name="bank_name" required
+                    class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border border-gray-300 rounded-md p-2"
+                    value="{{ bank.bank_name if bank else (form_data.bank_name if form_data else '') }}">
+            </div>
+            
+            <div class="mb-4">
+                <label for="account_name" class="block text-sm font-medium text-gray-700 mb-1">Account Name <span class="text-red-500">*</span></label>
+                <input type="text" id="account_name" name="account_name" required
+                    class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border border-gray-300 rounded-md p-2"
+                    value="{{ bank.account_name if bank else (form_data.account_name if form_data else '') }}">
+            </div>
+            
+            <div class="mb-4">
+                <label for="account_number" class="block text-sm font-medium text-gray-700 mb-1">Account Number <span class="text-red-500">*</span></label>
+                <input type="text" id="account_number" name="account_number" required
+                    class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border border-gray-300 rounded-md p-2"
+                    value="{{ bank.account_number if bank else (form_data.account_number if form_data else '') }}">
+            </div>
+            
+            <div class="mb-4">
+                <label for="branch" class="block text-sm font-medium text-gray-700 mb-1">Branch</label>
+                <input type="text" id="branch" name="branch"
+                    class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border border-gray-300 rounded-md p-2"
+                    value="{{ bank.branch if bank else (form_data.branch if form_data else '') }}">
+            </div>
+            
+            <div class="mb-4">
+                <label for="location" class="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                <input type="text" id="location" name="location"
+                    class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border border-gray-300 rounded-md p-2"
+                    value="{{ bank.location if bank else (form_data.location if form_data else '') }}">
+            </div>
+            
+            <div class="mb-4">
+                <label for="routing_number" class="block text-sm font-medium text-gray-700 mb-1">Routing Number</label>
+                <input type="text" id="routing_number" name="routing_number"
+                    class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border border-gray-300 rounded-md p-2"
+                    value="{{ bank.routing_number if bank else (form_data.routing_number if form_data else '') }}">
+            </div>
+            
+            <div class="mb-6">
+                <div class="flex items-center">
+                    <input type="checkbox" id="is_primary" name="is_primary"
+                        class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        {% if bank and bank.is_primary %}checked{% elif form_data and 'is_primary' in form_data %}checked{% elif not bank and not form_data %}checked{% endif %}>
+                    <label for="is_primary" class="ml-2 block text-sm text-gray-700">
+                        Set as primary bank account
+                    </label>
+                </div>
+            </div>
+            
+            <div class="flex justify-end space-x-3">
+                <a href="{{ url_for('client_banks', client_id=client.id) }}"
+                    class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Cancel
+                </a>
+                <button type="submit"
+                    class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    {{ 'Update Bank Account' if bank else 'Add Bank Account' }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 

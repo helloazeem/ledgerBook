@@ -84,6 +84,8 @@ class Client(db.Model):
     # Use string reference for Transaction to avoid circular import if models grow
     # Use lazy='dynamic' to get a query object for transactions, allowing further filtering/ordering
     transactions = db.relationship('Transaction', backref='client', lazy='dynamic', cascade="all, delete-orphan", order_by='Transaction.date, Transaction.id') # Order transactions by date then ID
+    # Add relationship to bank accounts
+    bank_accounts = db.relationship('ClientBank', backref='client', lazy='dynamic', cascade="all, delete-orphan")
 
     def __repr__(self):
         return f'<Client {self.name}>'
@@ -91,10 +93,18 @@ class Client(db.Model):
     # Helper property to get the latest balance
     @property
     def current_balance(self):
-        # Need to reference Transaction explicitly here
-        # Order by date DESC then ID DESC to get the absolute latest
-        latest_transaction = self.transactions.order_by(Transaction.date.desc(), Transaction.id.desc()).first()
-        return latest_transaction.balance if latest_transaction else 0.0
+        # Calculate the true balance by summing all transactions
+        debit_sum = db.session.query(db.func.sum(Transaction.debit)).filter(
+            Transaction.client_id == self.id,
+            Transaction.debit.isnot(None)
+        ).scalar() or 0
+        
+        credit_sum = db.session.query(db.func.sum(Transaction.credit)).filter(
+            Transaction.client_id == self.id,
+            Transaction.credit.isnot(None)
+        ).scalar() or 0
+        
+        return debit_sum - credit_sum
     
     # Helper method to count overdue transactions
     def count_overdue_transactions(self):
@@ -176,4 +186,21 @@ class Todo(db.Model):
     def is_overdue(self):
         if self.due_date and not self.is_completed:
             return self.due_date.date() < datetime.now().date()
-        return False 
+        return False
+
+# Add the ClientBank model after the Client model
+class ClientBank(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    client_id = db.Column(db.Integer, db.ForeignKey('client.id'), nullable=False)
+    bank_name = db.Column(db.String(100), nullable=False)
+    account_name = db.Column(db.String(100), nullable=False)
+    account_number = db.Column(db.String(50), nullable=False)
+    branch = db.Column(db.String(100), nullable=True)
+    location = db.Column(db.String(100), nullable=True)
+    routing_number = db.Column(db.String(50), nullable=True)
+    is_primary = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<ClientBank {self.bank_name} - {self.account_number}>' 
