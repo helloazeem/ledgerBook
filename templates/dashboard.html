@@ -1,8 +1,101 @@
 {% extends "layout.html" %}
 
 {% block head_content %}
-<!-- Include Sortable.js for drag-and-drop functionality -->
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.14.0/Sortable.min.js"></script>
+<!-- Add transition library for smoother animations -->
+<style>
+  .todo-item {
+    transition: all 0.3s ease;
+    border-left-width: 4px;
+    border-left-style: solid;
+    border-left-color: transparent;
+  }
+  
+  .todo-item:hover {
+    transform: translateX(5px);
+    border-left-color: #3b82f6;
+  }
+  
+  .todo-item.completed {
+    opacity: 0.7;
+    background-color: #f9fafb;
+    border-left-color: #10b981;
+  }
+  
+  .todo-item.overdue:not(.completed) {
+    border-left-color: #ef4444;
+  }
+  
+  .removing {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  
+  /* Filter button styles */
+  .filter-btn {
+    background-color: #f3f4f6;
+    color: #6b7280;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+  }
+  
+  .filter-btn:hover {
+    background-color: #e5e7eb;
+  }
+  
+  .filter-btn.active {
+    background-color: #3b82f6;
+    color: white;
+    border-color: #2563eb;
+  }
+  
+  /* Sort button styles */
+  #sortDirection {
+    transition: transform 0.2s ease;
+  }
+  
+  .sort-desc svg {
+    transform: rotate(180deg);
+  }
+  
+  /* Popup styles */
+  #todoPopup {
+    transition: opacity 0.3s ease;
+  }
+  
+  #todoPopup.flex {
+    opacity: 1;
+  }
+  
+  #todoPopup.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+  
+  #todoPopup .bg-white {
+    transition: transform 0.3s ease;
+  }
+  
+  #todoPopup.flex .bg-white {
+    transform: scale(1);
+  }
+  
+  #todoPopup.hidden .bg-white {
+    transform: scale(0.9);
+  }
+  
+  .todo-checkbox:checked + div h3 {
+    text-decoration: line-through;
+    color: #9ca3af;
+  }
+  
+  /* Responsive style adjustments */
+  @media (max-width: 640px) {
+    .filter-btn {
+      padding: 0.5rem;
+      font-size: 0.75rem;
+    }
+  }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -169,99 +262,122 @@
         <!-- To-Do List -->
         <div class="bg-white rounded-lg shadow-md overflow-hidden mb-6">
             <div class="border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-                <h3 class="text-lg font-medium text-gray-900">Tasks</h3>
-                <a href="{{ url_for('add_todo') }}" class="flex items-center text-blue-600 hover:text-blue-800">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                <h2 class="text-xl font-semibold text-gray-800">Todo List</h2>
+                <button onclick="showTodoPopup()" class="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                     </svg>
                     <span>New Task</span>
-                </a>
-            </div>
-            
-            <!-- Todo filter options -->
-            <div class="px-6 py-2 border-b border-gray-200 flex space-x-2">
-                <button type="button" class="todo-filter px-3 py-1 text-sm rounded-full border-2 border-blue-500 text-blue-600" data-filter="all">
-                    All
-                </button>
-                <button type="button" class="todo-filter px-3 py-1 text-sm rounded-full border-2 border-transparent text-gray-500" data-filter="active">
-                    Active
-                </button>
-                <button type="button" class="todo-filter px-3 py-1 text-sm rounded-full border-2 border-transparent text-gray-500" data-filter="completed">
-                    Completed
                 </button>
             </div>
             
-            <div id="todo-list" class="divide-y divide-gray-200">
-                {% if todos %}
-                    {% for todo in todos %}
-                    <div class="todo-item py-3 px-6 flex items-center {% if todo.is_completed %}todo-completed{% endif %}" 
-                         data-id="{{ todo.id }}" 
-                         data-position="{{ todo.position }}" 
-                         data-completed="{{ 'true' if todo.is_completed else 'false' }}">
-                        
-                        <!-- Drag handle -->
-                        <div class="todo-handle flex-shrink-0 mr-2 cursor-move text-gray-400 hover:text-gray-600">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" />
-                            </svg>
-                        </div>
-                        
+            <!-- Filter and Sort Controls -->
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <!-- Filter Buttons -->
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="filterTodos('all')" class="filter-btn active px-4 py-2 rounded-lg text-sm font-medium transition-colors" data-filter="all">
+                        All
+                    </button>
+                    <button onclick="filterTodos('active')" class="filter-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors" data-filter="active">
+                        Active
+                    </button>
+                    <button onclick="filterTodos('completed')" class="filter-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors" data-filter="completed">
+                        Completed
+                    </button>
+                    <button onclick="filterTodos('overdue')" class="filter-btn px-4 py-2 rounded-lg text-sm font-medium transition-colors" data-filter="overdue">
+                        Overdue
+                    </button>
+                </div>
+                
+                <!-- Sort Controls -->
+                <div class="flex items-center gap-2">
+                    <select id="sortSelect" onchange="sortTodos()" class="px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="due_date">Sort by Due Date</option>
+                        <option value="title">Sort by Title</option>
+                        <option value="priority">Sort by Priority</option>
+                    </select>
+                    <button onclick="toggleSortDirection()" id="sortDirection" class="p-2 rounded-lg hover:bg-gray-100 transition-colors">
+                        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Todo List -->
+            <div id="todoList" class="space-y-3">
+                {% for todo in todos %}
+                <div class="todo-item bg-white rounded-lg shadow-sm border border-gray-200 p-4 transition-all duration-200 hover:shadow-md" 
+                     data-id="{{ todo.id }}" 
+                     data-completed="{{ todo.is_completed|lower }}"
+                     data-due-date="{{ todo.due_date.strftime('%Y-%m-%d') if todo.due_date else '' }}"
+                     data-priority="{{ todo.priority }}">
+                    <div class="flex items-start gap-3">
                         <!-- Checkbox -->
-                        <div class="flex-shrink-0 mr-3">
-                            <input type="checkbox" class="todo-checkbox h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
-                                   data-id="{{ todo.id }}" 
-                                   {% if todo.is_completed %}checked{% endif %}>
+                        <div class="flex-shrink-0">
+                            <input type="checkbox" 
+                                   class="todo-checkbox w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                   {% if todo.is_completed %}checked{% endif %}
+                                   data-id="{{ todo.id }}"
+                                   onchange="toggleTodo(this.dataset.id, this.checked)">
                         </div>
                         
                         <!-- Content -->
-                        <div class="flex-1">
-                            <p class="text-sm font-medium {% if todo.is_completed %}line-through text-gray-400{% else %}text-gray-900{% endif %}">
-                                {{ todo.title }}
-                            </p>
-                            {% if todo.description %}
-                            <p class="text-xs text-gray-500 {% if todo.is_completed %}line-through text-gray-400{% endif %}">{{ todo.description|truncate(50) }}</p>
-                            {% endif %}
-                            {% if todo.due_date %}
-                            <div class="flex items-center mt-1">
-                                <svg xmlns="http://www.w3.org/2000/svg" 
-                                     class="h-3 w-3 mr-1 {% if todo.is_completed %}text-gray-400{% elif todo.is_overdue %}text-red-500{% else %}text-blue-500{% endif %}" 
-                                     fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                                <p class="text-xs {% if todo.is_completed %}text-gray-400{% elif todo.is_overdue %}text-red-500{% else %}text-blue-500{% endif %}">
-                                    {{ todo.due_date.strftime('%b %d, %Y') }}
-                                </p>
+                        <div class="flex-grow min-w-0">
+                            <div class="flex items-start justify-between gap-2">
+                                <h3 class="text-base font-medium text-gray-900 {% if todo.is_completed %}line-through text-gray-500{% endif %}">
+                                    {{ todo.title }}
+                                </h3>
+                                <div class="flex items-center gap-2">
+                                    {% if todo.priority == 'high' %}
+                                    <span class="px-2 py-1 text-xs font-medium text-red-700 bg-red-100 rounded-full">High</span>
+                                    {% elif todo.priority == 'medium' %}
+                                    <span class="px-2 py-1 text-xs font-medium text-yellow-700 bg-yellow-100 rounded-full">Medium</span>
+                                    {% else %}
+                                    <span class="px-2 py-1 text-xs font-medium text-green-700 bg-green-100 rounded-full">Low</span>
+                                    {% endif %}
+                                    
+                                    <button data-id="{{ todo.id }}" class="edit-todo-btn p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+                                        </svg>
+                                    </button>
+                                    <button data-id="{{ todo.id }}" class="delete-todo-btn p-1 text-gray-400 hover:text-red-600 rounded-lg hover:bg-gray-100 transition-colors">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                        </svg>
+                                    </button>
+                                </div>
                             </div>
-                            {% endif %}
-                        </div>
-                        
-                        <!-- Action buttons -->
-                        <div class="flex-shrink-0 ml-3 flex space-x-1">
-                            <a href="{{ url_for('edit_todo', todo_id=todo.id) }}" class="text-gray-400 hover:text-blue-600">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            
+                        {% if todo.description %}
+                            <p class="mt-1 text-sm text-gray-600 {% if todo.is_completed %}line-through text-gray-400{% endif %}">
+                                {{ todo.description }}
+                            </p>
+                        {% endif %}
+                            
+                        {% if todo.due_date %}
+                            <div class="mt-2 flex items-center gap-2">
+                                <svg class="w-4 h-4 {% if todo.is_overdue %}text-red-500{% elif todo.is_completed %}text-gray-400{% else %}text-blue-500{% endif %}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                                 </svg>
-                            </a>
-                            <button type="button" class="delete-todo text-gray-400 hover:text-red-600" data-id="{{ todo.id }}">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                            </button>
+                                <span class="text-sm {% if todo.is_overdue %}text-red-600 font-medium{% elif todo.is_completed %}text-gray-400{% else %}text-gray-600{% endif %}">
+                                    Due: {{ todo.due_date.strftime('%b %d, %Y') }}
+                                </span>
+                            </div>
+                        {% endif %}
                         </div>
                     </div>
-                    {% endfor %}
+                </div>
                 {% else %}
-                    <div class="text-center py-8">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                        </svg>
-                        <p class="text-gray-500 mt-2">No tasks to show</p>
-                        <a href="{{ url_for('add_todo') }}" class="mt-2 inline-block text-blue-600 hover:text-blue-700">
-                            Add your first task
-                        </a>
-                    </div>
-                {% endif %}
-            </div>
+                <div class="text-center py-8">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium text-gray-900">No tasks</h3>
+                    <p class="mt-1 text-sm text-gray-500">Get started by creating a new task.</p>
+                </div>
+            {% endfor %}
         </div>
         
         <!-- Quick Links -->
@@ -296,213 +412,509 @@
         </div>
     </div>
 </div>
+
+<!-- Todo Popup -->
+<div id="todoPopup" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 transform transition-all">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-medium text-gray-900" id="popupTitle">New Task</h3>
+                <button onclick="hideTodoPopup()" class="text-gray-400 hover:text-gray-500">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <form id="todoForm" onsubmit="handleTodoSubmit(event)" class="space-y-4">
+                <input type="hidden" id="todoId" name="id">
+                <div>
+                    <label for="title" class="block text-sm font-medium text-gray-700">Title</label>
+                    <input type="text" id="title" name="title" required
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label for="description" class="block text-sm font-medium text-gray-700">Description</label>
+                    <textarea id="description" name="description" rows="3"
+                              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                </div>
+                <div>
+                    <label for="due_date" class="block text-sm font-medium text-gray-700">Due Date</label>
+                    <input type="date" id="due_date" name="due_date"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label for="priority" class="block text-sm font-medium text-gray-700">Priority</label>
+                    <select id="priority" name="priority"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <option value="low">Low</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="high">High</option>
+                    </select>
+                </div>
+                <div class="flex items-center">
+                    <input type="checkbox" id="is_completed" name="is_completed"
+                           class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                    <label for="is_completed" class="ml-2 block text-sm text-gray-700">Mark as completed</label>
+                </div>
+                <div class="flex justify-end gap-3 mt-6">
+                    <button type="button" onclick="hideTodoPopup()"
+                            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Save
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block content_javascripts %}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Initialize drag-and-drop for todos
-        const todoList = document.getElementById('todo-list');
-        if (todoList) {
-            const sortable = new Sortable(todoList, {
-                animation: 150,
-                handle: '.todo-handle',
-                ghostClass: 'bg-blue-50',
-                onEnd: function(evt) {
-                    const todoId = evt.item.getAttribute('data-id');
-                    const newPosition = evt.newIndex;
-                    const oldPosition = evt.oldIndex;
-                    
-                    if (newPosition !== oldPosition) {
-                        updateTodoPosition(todoId, newPosition);
-                    }
-                }
-            });
+let currentFilter = 'all';
+let currentSort = 'due_date'; // Default to due date sorting
+let sortDirection = 'asc';
+
+// Initialize todo items with correct classes based on their state
+function initializeTodoItems() {
+    document.querySelectorAll('.todo-item').forEach(todo => {
+        const isCompleted = todo.dataset.completed === 'true';
+        const dueDate = todo.dataset.dueDate;
+        const isOverdue = dueDate && new Date(dueDate) < new Date() && !isCompleted;
+        
+        // Set completed class
+        todo.classList.toggle('completed', isCompleted);
+        
+        // Set overdue class
+        todo.classList.toggle('overdue', isOverdue);
+    });
+}
+
+// Initialize todo functionality
+document.addEventListener('DOMContentLoaded', function() {
+    // Add event listeners for edit and delete buttons
+    document.querySelectorAll('.edit-todo-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const todoId = this.dataset.id;
+            showTodoPopup(todoId);
+        });
+    });
+    
+    document.querySelectorAll('.delete-todo-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const todoId = this.dataset.id;
+            deleteTodo(todoId);
+        });
+    });
+    
+    // Initialize todo items with the correct classes
+    initializeTodoItems();
+    
+    // Set initial filter to "All"
+    filterTodos('all');
+    
+    // Add a small comment for developers
+    console.log('Todo functionality initialized - drag-and-drop disabled');
+});
+
+function filterTodos(filter) {
+    currentFilter = filter;
+    const todos = document.querySelectorAll('.todo-item');
+    const filterButtons = document.querySelectorAll('.filter-btn');
+    
+    // Update active filter button
+    filterButtons.forEach(btn => {
+        const isActive = btn.getAttribute('data-filter') === filter;
+        btn.classList.toggle('active', isActive);
+    });
+    
+    // Show/hide todos based on filter
+    let visibleCount = 0;
+    
+    todos.forEach(todo => {
+        const isCompleted = todo.dataset.completed === 'true';
+        const dueDate = todo.dataset.dueDate;
+        const isOverdue = dueDate && new Date(dueDate) < new Date() && !isCompleted;
+        
+        let show = false;
+        switch(filter) {
+            case 'all':
+                show = true;
+                break;
+            case 'active':
+                show = !isCompleted;
+                break;
+            case 'completed':
+                show = isCompleted;
+                break;
+            case 'overdue':
+                show = isOverdue;
+                break;
         }
         
-        // Todo filtering
-        const filterButtons = document.querySelectorAll('.todo-filter');
-        if (filterButtons.length > 0) {
-            filterButtons.forEach(button => {
-                button.addEventListener('click', function() {
-                    // Update active button styling
-                    filterButtons.forEach(btn => {
-                        btn.classList.remove('border-blue-500', 'text-blue-600');
-                        btn.classList.add('border-transparent', 'text-gray-500');
-                    });
-                    this.classList.remove('border-transparent', 'text-gray-500');
-                    this.classList.add('border-blue-500', 'text-blue-600');
-                    
-                    // Filter todos
-                    const filter = this.getAttribute('data-filter');
-                    const todos = document.querySelectorAll('.todo-item');
-                    
-                    todos.forEach(todo => {
-                        const isCompleted = todo.getAttribute('data-completed') === 'true';
-                        
-                        if (filter === 'all' || 
-                            (filter === 'active' && !isCompleted) || 
-                            (filter === 'completed' && isCompleted)) {
-                            todo.classList.remove('hidden');
-                        } else {
-                            todo.classList.add('hidden');
-                        }
-                    });
-                });
-            });
-        }
-        
-        // Toggle todo completion
-        const todoCheckboxes = document.querySelectorAll('.todo-checkbox');
-        todoCheckboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', function() {
-                const todoId = this.getAttribute('data-id');
-                const isCompleted = this.checked;
-                const todoItem = this.closest('.todo-item');
-                
-                // Update UI
-                if (isCompleted) {
-                    todoItem.classList.add('todo-completed');
-                    todoItem.setAttribute('data-completed', 'true');
-                    
-                    // Add line-through to text
-                    todoItem.querySelectorAll('.text-gray-900, .text-gray-500, .text-blue-500, .text-red-500').forEach(el => {
-                        el.classList.add('line-through', 'text-gray-400');
-                        el.classList.remove('text-gray-900', 'text-gray-500', 'text-blue-500', 'text-red-500');
-                    });
-                } else {
-                    todoItem.classList.remove('todo-completed');
-                    todoItem.setAttribute('data-completed', 'false');
-                    
-                    // Remove line-through from text
-                    const titleEl = todoItem.querySelector('p:first-child');
-                    titleEl.classList.remove('line-through', 'text-gray-400');
-                    titleEl.classList.add('text-gray-900');
-                    
-                    const descEl = todoItem.querySelector('p:nth-child(2)');
-                    if (descEl) {
-                        descEl.classList.remove('line-through');
-                    }
-                    
-                    const dueDateEl = todoItem.querySelector('.flex p');
-                    const dueDateIcon = todoItem.querySelector('.flex svg');
-                    if (dueDateEl) {
-                        dueDateEl.classList.remove('text-gray-400');
-                        dueDateIcon.classList.remove('text-gray-400');
-                        
-                        const dateStr = dueDateEl.textContent.trim();
-                        const dateParts = dateStr.split(' ');
-                        const month = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].indexOf(dateParts[0]);
-                        const day = parseInt(dateParts[1].replace(',', ''));
-                        const year = parseInt(dateParts[2]);
-                        const dueDate = new Date(year, month, day);
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
-                        
-                        if (dueDate < today) {
-                            dueDateEl.classList.add('text-red-500');
-                            dueDateIcon.classList.add('text-red-500');
-                        } else {
-                            dueDateEl.classList.add('text-blue-500');
-                            dueDateIcon.classList.add('text-blue-500');
-                        }
-                    }
-                }
-                
-                // Send AJAX request to update todo
-                fetchWithCSRF(`/todos/${todoId}/toggle`, {
-                    method: 'POST',
-                    body: JSON.stringify({ is_completed: isCompleted })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (!data.success) {
-                        console.error('Error updating todo:', data.message);
-                    }
-                })
-                .catch(error => console.error('Error:', error));
-            });
-        });
-        
-        // Delete todo
-        const deleteButtons = document.querySelectorAll('.delete-todo');
-        deleteButtons.forEach(button => {
-            button.addEventListener('click', function() {
-                const todoId = this.getAttribute('data-id');
-                const todoItem = this.closest('.todo-item');
-                
-                if (confirm('Are you sure you want to delete this task?')) {
-                    // Send AJAX request to delete todo
-                    fetchWithCSRF(`/todos/${todoId}/delete`, {
-                        method: 'POST'
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            // Remove the todo from the DOM with animation
-                            todoItem.style.height = todoItem.offsetHeight + 'px';
-                            todoItem.style.opacity = '1';
-                            
-                            setTimeout(() => {
-                                todoItem.style.height = '0';
-                                todoItem.style.opacity = '0';
-                                todoItem.style.marginTop = '0';
-                                todoItem.style.marginBottom = '0';
-                                todoItem.style.padding = '0';
-                                todoItem.style.overflow = 'hidden';
-                            }, 10);
-                            
-                            setTimeout(() => {
-                                todoItem.remove();
-                                
-                                // Show "No tasks" message if no more todos
-                                const remainingTodos = document.querySelectorAll('.todo-item').length;
-                                if (remainingTodos === 0) {
-                                    const todoList = document.getElementById('todo-list');
-                                    todoList.innerHTML = `
-                                        <div class="text-center py-8">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                                            </svg>
-                                            <p class="text-gray-500 mt-2">No tasks to show</p>
-                                            <a href="${window.location.origin}/todos/add" class="mt-2 inline-block text-blue-600 hover:text-blue-700">
-                                                Add your first task
-                                            </a>
-                                        </div>
-                                    `;
-                                }
-                            }, 300);
-                        } else {
-                            alert(data.message || 'Error deleting task');
-                        }
-                    })
-                    .catch(error => console.error('Error:', error));
-                }
-            });
-        });
-        
-        // Helper function to update todo position
-        function updateTodoPosition(todoId, newPosition) {
-            // Get all visible todo IDs in their current order
-            const todoItems = document.querySelectorAll('.todo-item:not(.hidden)');
-            const todoOrder = Array.from(todoItems).map(item => item.getAttribute('data-id'));
+        todo.style.display = show ? '' : 'none';
+        if (show) visibleCount++;
+    });
+    
+    // Show/hide empty state
+    const emptyState = document.querySelector('.todo-empty-state');
+    const todoList = document.getElementById('todoList');
+    
+    if (visibleCount === 0) {
+        // Create empty state if it doesn't exist
+        if (!emptyState) {
+            const newEmptyState = document.createElement('div');
+            newEmptyState.className = 'todo-empty-state text-center py-8';
+            newEmptyState.innerHTML = `
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                </svg>
+                <h3 class="mt-2 text-sm font-medium text-gray-900">No ${filter} tasks</h3>
+                <p class="mt-1 text-sm text-gray-500">
+                    ${filter === 'all' ? 'Get started by creating a new task.' : 
+                      filter === 'active' ? 'All your tasks are completed.' : 
+                      filter === 'completed' ? 'You have no completed tasks yet.' : 
+                      'You have no overdue tasks.'}
+                </p>
+            `;
+            todoList.appendChild(newEmptyState);
+        } else {
+            // Update existing empty state
+            const header = emptyState.querySelector('h3');
+            const paragraph = emptyState.querySelector('p');
             
-            // Send AJAX request to update position
-            fetchWithCSRF(`/todos/${todoId}/position`, {
-                method: 'POST',
-                body: JSON.stringify({
-                    position: newPosition,
-                    order: todoOrder
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (!data.success) {
-                    console.error('Error updating todo position:', data.message);
-                }
-            })
-            .catch(error => console.error('Error:', error));
+            if (header) header.textContent = `No ${filter} tasks`;
+            if (paragraph) {
+                paragraph.textContent = filter === 'all' ? 'Get started by creating a new task.' : 
+                                       filter === 'active' ? 'All your tasks are completed.' : 
+                                       filter === 'completed' ? 'You have no completed tasks yet.' : 
+                                       'You have no overdue tasks.';
+            }
+            
+            emptyState.style.display = '';
+        }
+    } else if (emptyState) {
+        emptyState.style.display = 'none';
+    }
+}
+
+function sortTodos() {
+    currentSort = document.getElementById('sortSelect').value;
+    const todoList = document.getElementById('todoList');
+    const todos = Array.from(todoList.children).filter(item => 
+        item.classList.contains('todo-item') && item.style.display !== 'none'
+    );
+    
+    todos.sort((a, b) => {
+        let valueA, valueB;
+        
+        switch(currentSort) {
+            case 'due_date':
+                valueA = a.dataset.dueDate || '9999-12-31';
+                valueB = b.dataset.dueDate || '9999-12-31';
+                break;
+            case 'title':
+                valueA = a.querySelector('h3').textContent.toLowerCase();
+                valueB = b.querySelector('h3').textContent.toLowerCase();
+                break;
+            case 'priority':
+                const priorityOrder = { high: 0, medium: 1, low: 2 };
+                valueA = priorityOrder[a.dataset.priority];
+                valueB = priorityOrder[b.dataset.priority];
+                break;
+            default:
+                return 0;
+        }
+        
+        if (sortDirection === 'asc') {
+            return valueA > valueB ? 1 : -1;
+        } else {
+            return valueA < valueB ? 1 : -1;
         }
     });
+    
+    // Reappend todos in the new order
+    todos.forEach(todo => todoList.appendChild(todo));
+    
+    // Log sorting for debugging
+    console.log(`Sorted todos by ${currentSort} (${sortDirection})`);
+}
+
+function toggleSortDirection() {
+    const button = document.getElementById('sortDirection');
+    sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+    button.classList.toggle('sort-desc', sortDirection === 'desc');
+    sortTodos();
+}
+
+function showTodoPopup(todoId = null) {
+    const popup = document.getElementById('todoPopup');
+    const form = document.getElementById('todoForm');
+    const title = document.getElementById('popupTitle');
+    
+    // Reset form
+    form.reset();
+    document.getElementById('todoId').value = '';
+    
+    if (todoId) {
+        // Edit mode
+        title.textContent = 'Edit Task';
+        const todo = document.querySelector(`.todo-item[data-id="${todoId}"]`);
+        if (todo) {
+            document.getElementById('todoId').value = todoId;
+            document.getElementById('title').value = todo.querySelector('h3').textContent.trim();
+            document.getElementById('description').value = todo.querySelector('p')?.textContent.trim() || '';
+            document.getElementById('due_date').value = todo.dataset.dueDate || '';
+            document.getElementById('priority').value = todo.dataset.priority;
+            document.getElementById('is_completed').checked = todo.dataset.completed === 'true';
+        }
+    } else {
+        // New task mode
+        title.textContent = 'New Task';
+    }
+    
+    popup.classList.remove('hidden');
+    popup.classList.add('flex');
+}
+
+function hideTodoPopup() {
+    const popup = document.getElementById('todoPopup');
+    popup.classList.add('hidden');
+    popup.classList.remove('flex');
+}
+
+async function handleTodoSubmit(event) {
+    event.preventDefault();
+    
+    const form = event.target;
+    const todoId = document.getElementById('todoId').value;
+    const isNewTodo = !todoId;
+    
+    // Get form data
+    const title = document.getElementById('title').value.trim();
+    const description = document.getElementById('description').value.trim();
+    const dueDate = document.getElementById('due_date').value;
+    const priority = document.getElementById('priority').value;
+    const isCompleted = document.getElementById('is_completed').checked;
+    
+    // Basic validation
+    if (!title) {
+        alert('Please enter a title for the task.');
+        document.getElementById('title').focus();
+        return;
+    }
+    
+    // Prepare data
+    const data = {
+        title: title,
+        description: description,
+        due_date: dueDate,
+        priority: priority,
+        is_completed: isCompleted
+    };
+    
+    // Show loading state
+    const submitButton = form.querySelector('button[type="submit"]');
+    const originalText = submitButton.textContent;
+    submitButton.disabled = true;
+    submitButton.textContent = 'Saving...';
+    
+    try {
+        const url = isNewTodo ? '/todos/add' : `/todos/${todoId}/edit`;
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify(data)
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Server responded with ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Close popup
+            hideTodoPopup();
+            
+            // For simplicity, refresh the page to show the updated todo
+            // In a production app, you might want to update the DOM directly
+            window.location.reload();
+        } else {
+            console.error('Error saving todo:', result.message);
+            alert(result.message || 'There was an error saving your task.');
+        }
+    } catch (error) {
+        console.error('Error saving todo:', error);
+        alert('There was an error saving your task. Please try again.');
+    } finally {
+        // Reset button state
+        submitButton.disabled = false;
+        submitButton.textContent = originalText;
+    }
+}
+
+async function toggleTodo(id, isCompleted) {
+    try {
+        const response = await fetch(`/todos/${id}/toggle`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({ is_completed: isCompleted })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        
+        const result = await response.json();
+        if (result.success) {
+            const todo = document.querySelector(`.todo-item[data-id="${id}"]`);
+            if (todo) {
+                // Update data attribute
+                todo.dataset.completed = isCompleted ? 'true' : 'false';
+                
+                // Update class for styling
+                todo.classList.toggle('completed', isCompleted);
+                
+                // Update text styling
+                const title = todo.querySelector('h3');
+                const description = todo.querySelector('p');
+                const dueDate = todo.querySelector('.text-sm:last-child');
+                
+                if (title) {
+                    if (isCompleted) {
+                        title.classList.add('line-through', 'text-gray-500');
+                        title.classList.remove('text-gray-900');
+                    } else {
+                        title.classList.remove('line-through', 'text-gray-500');
+                        title.classList.add('text-gray-900');
+                    }
+                }
+                
+                if (description) {
+                    if (isCompleted) {
+                        description.classList.add('line-through', 'text-gray-400');
+                        description.classList.remove('text-gray-600');
+                    } else {
+                        description.classList.remove('line-through', 'text-gray-400');
+                        description.classList.add('text-gray-600');
+                    }
+                }
+                
+                // Reapply filter to hide/show if needed
+                filterTodos(currentFilter);
+            }
+        } else {
+            console.error('Error toggling todo completion:', result.message);
+            // Revert the checkbox
+            const checkbox = document.querySelector(`.todo-checkbox[data-id="${id}"]`);
+            if (checkbox) {
+                checkbox.checked = !isCompleted;
+            }
+            alert(result.message || 'An error occurred');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        // Revert the checkbox
+        const checkbox = document.querySelector(`.todo-checkbox[data-id="${id}"]`);
+        if (checkbox) {
+            checkbox.checked = !isCompleted;
+        }
+        alert('An error occurred while updating the task');
+    }
+}
+
+// Helper function to get CSRF token
+function getCsrfToken() {
+    const csrfCookie = document.cookie.split(';')
+        .find(cookie => cookie.trim().startsWith('csrftoken='));
+    
+    if (csrfCookie) {
+        return csrfCookie.split('=')[1];
+    }
+    
+    // If no cookie, try meta tag
+    const csrfInput = document.querySelector('meta[name="csrf-token"]');
+    if (csrfInput) {
+        return csrfInput.getAttribute('content');
+    }
+    
+    // If still not found, look for hidden input
+    const csrfHidden = document.querySelector('input[name="csrf_token"]');
+    if (csrfHidden) {
+        return csrfHidden.value;
+    }
+    
+    return '';
+}
+
+async function deleteTodo(id) {
+    if (!confirm('Are you sure you want to delete this task?')) {
+        return;
+    }
+    
+    const todo = document.querySelector(`.todo-item[data-id="${id}"]`);
+    if (!todo) return;
+    
+    todo.classList.add('removing');
+    
+    try {
+        const response = await fetch(`/todos/${id}/delete`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken()
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        
+        const result = await response.json();
+        if (result.success) {
+            setTimeout(() => {
+                todo.remove();
+                
+                // Show empty state if no more todos left
+                const visibleTodos = document.querySelectorAll('.todo-item:not([style*="display: none"])');
+                if (visibleTodos.length === 0) {
+                    // Create an empty state message if it doesn't exist
+                    let emptyState = document.querySelector('.todo-empty-state');
+                    if (!emptyState) {
+                        emptyState = document.createElement('div');
+                        emptyState.className = 'todo-empty-state text-center py-8';
+                        emptyState.innerHTML = `
+                            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                            </svg>
+                            <h3 class="mt-2 text-sm font-medium text-gray-900">No tasks</h3>
+                            <p class="mt-1 text-sm text-gray-500">Get started by creating a new task.</p>
+                        `;
+                        const todoList = document.getElementById('todoList');
+                        todoList.appendChild(emptyState);
+                    }
+                    emptyState.style.display = '';
+                }
+            }, 300);
+        } else {
+            todo.classList.remove('removing');
+            console.error('Error deleting todo:', result.message);
+            alert(result.message || 'An error occurred');
+        }
+    } catch (error) {
+        todo.classList.remove('removing');
+        console.error('Error:', error);
+        alert('An error occurred while deleting the task');
+    }
+}
 </script>
 {% endblock %} 
