@@ -1,0 +1,261 @@
+/* Todo Component Styles */
+.todo-container {
+  position: relative;
+  transition: all 0.3s ease;
+  max-height: 480px;
+  overflow-y: auto;
+}
+
+.todo-item {
+  position: relative;
+  transition: all 0.3s ease;
+  border-left-width: 4px;
+  border-left-style: solid;
+  border-left-color: transparent;
+}
+
+.todo-item:hover {
+  transform: translateX(5px);
+  border-left-color: #3b82f6;
+}
+
+.todo-item.completed {
+  opacity: 0.7;
+  background-color: #f9fafb;
+  border-left-color: #10b981;
+}
+
+.todo-item.overdue:not(.completed) {
+  border-left-color: #ef4444;
+}
+
+.todo-item.dragging {
+  opacity: 0.8;
+  background-color: #f0f9ff;
+  border: 1px dashed #93c5fd;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.5);
+  transform: rotate(1deg) scale(1.02);
+  z-index: 10;
+}
+
+.todo-drag-handle {
+  cursor: grab;
+  opacity: 0.3;
+  transition: opacity 0.2s ease;
+}
+
+.todo-item:hover .todo-drag-handle {
+  opacity: 0.8;
+}
+
+.todo-item:hover .todo-actions {
+  opacity: 1;
+}
+
+.todo-actions {
+  opacity: 0.5;
+  transition: opacity 0.2s ease;
+}
+
+.todo-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  height: 1.25rem;
+  width: 1.25rem;
+  border-radius: 9999px;
+  border: 2px solid;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.todo-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 9999px;
+  background-color: currentColor;
+}
+
+/* Todo Filter Button */
+.filter-btn {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.filter-btn:hover {
+  transform: translateY(-1px);
+}
+
+.filter-btn.active {
+  font-weight: 600;
+}
+
+/* Priority Colors */
+.priority-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.priority-dot.high {
+  background-color: #ef4444;
+}
+
+.priority-dot.medium {
+  background-color: #f59e0b;
+}
+
+.priority-dot.low {
+  background-color: #10b981;
+}
+
+.todo-item:hover .priority-dot {
+  transform: scale(1.2);
+}
+
+/* Due Date Styling */
+.due-date {
+  display: flex;
+  align-items: center;
+  font-size: 0.875rem;
+}
+
+.due-date.overdue {
+  color: #ef4444;
+}
+
+.due-date.today {
+  color: #f59e0b;
+}
+
+.due-date.upcoming {
+  color: #3b82f6;
+}
+
+.due-date.completed {
+  color: #9ca3af;
+  text-decoration: line-through;
+}
+
+/* Add Task Button Animation */
+.add-todo-btn {
+  transition: all 0.3s ease;
+}
+
+.add-todo-btn:hover {
+  transform: translateY(-2px);
+}
+
+.add-todo-btn:hover svg {
+  transform: rotate(90deg);
+}
+
+.add-todo-btn svg {
+  transition: transform 0.3s ease;
+}
+
+/* Animation for todo items */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.todo-item {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Animation for removing todos */
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+
+.todo-item.removing {
+  animation: fadeOut 0.3s ease-out forwards;
+}
+
+/* Todo Empty State Styling */
+.todo-empty-state {
+  text-align: center;
+  padding: 2rem 0;
+}
+
+.todo-empty-state svg {
+  margin: 0 auto;
+  color: #d1d5db;
+}
+
+.todo-empty-state h3 {
+  margin-top: 1rem;
+  font-weight: 500;
+}
+
+.todo-empty-state p {
+  color: #6b7280;
+  margin-top: 0.5rem;
+}
+
+/* Todo Popup Form */
+.todo-popup {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.todo-popup.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.todo-popup-content {
+  background-color: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 28rem;
+  transform: scale(0.95);
+  transition: transform 0.3s ease;
+}
+
+.todo-popup.show .todo-popup-content {
+  transform: scale(1);
+}
+
+.todo-ghost {
+  opacity: 0.4;
+  background: #f3f4f6;
+}
+
+.todo-chosen {
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.5);
+} 
